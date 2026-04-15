@@ -19,6 +19,9 @@ export type Season =
   | 'Bright Winter';
 
 export type ProductCategory = 'lipstick' | 'blush' | 'eyeshadow' | 'base_makeup' | 'fashion';
+export type ProductFinish = 'matte' | 'satin' | 'dewy' | 'natural' | 'shimmer';
+export type ProductIntensity = 'soft' | 'medium' | 'bold';
+export type CurrencyCode = 'USD';
 
 export type ImageQuality = {
   passed: boolean;
@@ -54,14 +57,22 @@ export type RecommendationItem = {
 
 export type ProductRecommendation = {
   id: string;
+  slug: string;
   name: string;
+  brand: string;
   category: ProductCategory;
   shade: string;
   image: string;
+  short_description: string;
   reason: string;
   url: string;
+  purchase_url: string;
   score: number;
   price: string;
+  currency: CurrencyCode;
+  finish?: ProductFinish;
+  intensity?: ProductIntensity;
+  badges: string[];
 };
 
 export type AnalysisResult = {
@@ -114,15 +125,32 @@ export type UploadedImage = {
 
 export type Product = {
   id: string;
+  slug: string;
   name: string;
+  brand: string;
   category: ProductCategory;
   shade: string;
   image: string;
+  gallery?: string[];
   url: string;
   price: string;
+  currency: CurrencyCode;
   seasons: Season[];
   undertones: Undertone[];
   saturation: Saturation;
   brightness: Brightness;
+  contrast_support?: Contrast[];
+  finish?: ProductFinish;
+  intensity?: ProductIntensity;
+  use_cases?: string[];
+  ingredients_highlights?: string[];
   description: string;
+  short_description: string;
+  why_it_matches_template?: string;
+  retailer: {
+    name: string;
+    url: string;
+    affiliate?: boolean;
+  };
+  active: boolean;
 };

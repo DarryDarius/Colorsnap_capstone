@@ -93,7 +93,7 @@ const PanelCopy = styled.p`
   margin: 0;
 `;
 
-const DemoBadge = styled.span`
+const PanelBadge = styled.span`
   background: var(--surface-sage);
   border: 1px solid #DDE8DA;
   border-radius: var(--radius-md);
@@ -107,6 +107,8 @@ const DemoBadge = styled.span`
 const FileInput = styled.input`
   display: none;
 `;
+
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 const DropZone = styled.div<{ $hasPreview: boolean; $isDragging: boolean }>`
   align-items: center;
@@ -366,6 +368,11 @@ const Analysis: React.FC = () => {
       return;
     }
 
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setError('Please upload an image smaller than 5 MB.');
+      return;
+    }
+
     setError(null);
     setSelectedFile(file);
 
@@ -393,6 +400,7 @@ const Analysis: React.FC = () => {
 
     try {
       const response = await createAnalysis(selectedFile);
+      localStorage.setItem('lastAnalysisId', response.analysis_id);
       navigate(`/result?id=${encodeURIComponent(response.analysis_id)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to start analysis.');
@@ -421,7 +429,7 @@ const Analysis: React.FC = () => {
         <Eyebrow>AI Color Analysis</Eyebrow>
         <Title>Upload a clear selfie for your color report.</Title>
         <Description>
-          Get a seasonal color estimate, palette guidance, and product matches from the mock AI pipeline.
+          Get a seasonal color estimate, palette guidance, and product recommendations from your uploaded photo.
         </Description>
       </PageHeader>
 
@@ -432,7 +440,7 @@ const Analysis: React.FC = () => {
               <PanelTitle>Start with one natural-light photo</PanelTitle>
               <PanelCopy>Use a front-facing image with your face unobstructed.</PanelCopy>
             </div>
-            <DemoBadge>Demo mode</DemoBadge>
+            <PanelBadge>Private analysis</PanelBadge>
           </PanelHeader>
 
           <FileInput

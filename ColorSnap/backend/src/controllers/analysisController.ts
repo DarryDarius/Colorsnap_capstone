@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { analyzeImageWithMockAi } from '../services/aiAnalysisService';
+import { analyzeImage } from '../services/aiAnalysisService';
 import { getProductRecommendations } from '../services/productRecommendationService';
 import {
   completeAnalysis,
@@ -12,7 +12,7 @@ import { parseUploadedImage } from '../utils/validation';
 
 const processAnalysis = async (analysisId: string, image: Awaited<ReturnType<typeof parseUploadedImage>>) => {
   try {
-    const modelResult = await analyzeImageWithMockAi(image);
+    const modelResult = await analyzeImage(image);
     const products = getProductRecommendations({
       primarySeason: modelResult.season_result!.primary,
       secondarySeason: modelResult.season_result!.secondary,
@@ -27,7 +27,7 @@ const processAnalysis = async (analysisId: string, image: Awaited<ReturnType<typ
   } catch (error) {
     failAnalysis(
       analysisId,
-      'MODEL_TIMEOUT',
+      error instanceof ApiError ? error.code : 'MODEL_ERROR',
       error instanceof Error ? error.message : 'Analysis could not be completed.'
     );
   }

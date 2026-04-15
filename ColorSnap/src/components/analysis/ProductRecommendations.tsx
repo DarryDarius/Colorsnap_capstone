@@ -45,6 +45,22 @@ const ProductCard = styled.div`
   }
 `;
 
+const BadgeRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+`;
+
+const Badge = styled.span`
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  color: #915341;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.3rem 0.65rem;
+`;
+
 const ProductImage = styled.img`
   width: 100%;
   border-radius: 8px;
@@ -53,8 +69,17 @@ const ProductImage = styled.img`
 
 const ProductTitle = styled.h3`
   font-size: 1.2rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.2rem;
   color: #c655ad;
+`;
+
+const ProductBrand = styled.p`
+  color: #915341;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.85rem;
+  text-transform: uppercase;
 `;
 
 const ProductInfo = styled.p`
@@ -63,7 +88,14 @@ const ProductInfo = styled.p`
   color: #2c2c2c;
 `;
 
-const AddToCartButton = styled.button`
+const ActionRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+`;
+
+const ActionButton = styled.button`
   padding: 0.5rem 1rem;
   background: linear-gradient(135deg, #f96ed6, #eff66f);
   border: none;
@@ -77,6 +109,22 @@ const AddToCartButton = styled.button`
 
   &:hover {
     background: #d9793f;
+    transform: translateY(-2px);
+  }
+`;
+
+const PurchaseLink = styled.a`
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  color: #915341;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.3s ease, background 0.3s ease;
+
+  &:hover {
+    background: #ffffff;
     transform: translateY(-2px);
   }
 `;
@@ -121,14 +169,26 @@ const ProductRecommendations: React.FC<Props> = ({
           <ProductCard key={product.id}>
             <ProductImage src={product.image} alt={product.name} />
             <ProductTitle>{product.name}</ProductTitle>
+            <ProductBrand>{product.brand}</ProductBrand>
+            <BadgeRow>
+              {product.badges.map((badge) => (
+                <Badge key={badge}>{badge}</Badge>
+              ))}
+            </BadgeRow>
             <ProductInfo><strong>Shade:</strong> {product.shade}</ProductInfo>
             <ProductInfo><strong>Category:</strong> {formatLabel(product.category)}</ProductInfo>
             <ProductInfo><strong>Match Score:</strong> {product.score}</ProductInfo>
             <ProductInfo><strong>Price:</strong> ${product.price}</ProductInfo>
+            <ProductInfo>{product.short_description}</ProductInfo>
             <ProductInfo>{product.reason}</ProductInfo>
-            <AddToCartButton onClick={() => onAddToCart(product)}>
-              Add to Cart
-            </AddToCartButton>
+            <ActionRow>
+              <ActionButton onClick={() => onAddToCart(product)}>
+                Add to Cart
+              </ActionButton>
+              <PurchaseLink href={product.purchase_url} target="_blank" rel="noreferrer">
+                Buy Externally
+              </PurchaseLink>
+            </ActionRow>
           </ProductCard>
         ))}
       </ProductsGrid>

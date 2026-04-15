@@ -121,14 +121,30 @@ const ErrorBox = styled(StatusBox)`
   color: #b42318;
 `;
 
+const ProcessingList = styled.ul`
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  text-align: left;
+  display: grid;
+  gap: 0.45rem;
+`;
+
+const processingMessages = [
+  'Checking lighting, clarity, and facial visibility.',
+  'Estimating undertone, contrast, brightness, and saturation.',
+  'Building your seasonal palette summary and product matches.'
+];
+
 const Result: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [processingStep, setProcessingStep] = useState(0);
   const navigate = useNavigate();
-  const analysisId = searchParams.get('id');
+  const analysisId = searchParams.get('id') || localStorage.getItem('lastAnalysisId');
 
   useEffect(() => {
     const photo = localStorage.getItem('uploadedPhoto');
@@ -145,6 +161,7 @@ const Result: React.FC = () => {
 
     let isMounted = true;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let pollDelay = 1000;
 
     const poll = async () => {
       try {
@@ -155,7 +172,8 @@ const Result: React.FC = () => {
         setError(null);
 
         if (nextAnalysis.status === 'processing') {
-          timeoutId = setTimeout(poll, 1000);
+          timeoutId = setTimeout(poll, pollDelay);
+          pollDelay = Math.min(pollDelay + 500, 3000);
         }
       } catch (err) {
         if (isMounted) {
@@ -171,6 +189,26 @@ const Result: React.FC = () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [analysisId]);
+
+  useEffect(() => {
+    if (analysis?.status && analysis.analysis_id) {
+      localStorage.setItem('lastAnalysisId', analysis.analysis_id);
+    }
+  }, [analysis]);
+
+  useEffect(() => {
+    if (analysis?.status !== 'processing') {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setProcessingStep((currentStep) => (currentStep + 1) % processingMessages.length);
+    }, 1800);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [analysis?.status]);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -221,7 +259,15 @@ const Result: React.FC = () => {
 
         {!error && (!analysis || analysis.status === 'processing') && (
           <StatusBox>
-            Analyzing your photo with the mock AI pipeline. This usually takes a moment.
+            We are preparing your personalized color report. This usually takes a few seconds.
+            <ProcessingList>
+              {processingMessages.map((message, index) => (
+                <li key={message}>
+                  {index === processingStep ? '• ' : '○ '}
+                  {message}
+                </li>
+              ))}
+            </ProcessingList>
           </StatusBox>
         )}
 
