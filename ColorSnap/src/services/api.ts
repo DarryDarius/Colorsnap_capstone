@@ -1,4 +1,4 @@
-import type { AnalysisResult, CreateAnalysisResponse } from '../types/analysis';
+import type { AnalysisResult, CreateAnalysisResponse, ProductDetail } from '../types/analysis';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
 
@@ -36,4 +36,10 @@ export const createAnalysis = async (image: File): Promise<CreateAnalysisRespons
 export const getAnalysis = async (analysisId: string): Promise<AnalysisResult> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${encodeURIComponent(analysisId)}`);
   return readJson<AnalysisResult>(response);
+};
+
+export const getProductDetail = async (slug: string, analysisId?: string | null): Promise<ProductDetail> => {
+  const query = analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : '';
+  const response = await fetch(`${API_BASE_URL}/api/v1/products/${encodeURIComponent(slug)}${query}`);
+  return readJson<ProductDetail>(response);
 };

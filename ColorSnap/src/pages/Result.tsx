@@ -10,6 +10,7 @@ import PaletteSection from '../components/analysis/PaletteSection';
 import ProductRecommendations from '../components/analysis/ProductRecommendations';
 import { getAnalysis } from '../services/api';
 import type { AnalysisResult, ProductRecommendation } from '../types/analysis';
+import { addProductToCart } from '../utils/cart';
 
 const ResultSection = styled.section`
   background: linear-gradient(135deg, #f96ed6, #eff66f);
@@ -229,15 +230,12 @@ const Result: React.FC = () => {
   };
 
   const handleAddToCart = (product: ProductRecommendation) => {
-    const cart = JSON.parse(localStorage.getItem('shoppingCart') || '[]');
-    cart.push({
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      description: product.reason
+    const { item } = addProductToCart(product, {
+      analysisId: analysis?.analysis_id,
+      description: product.reason,
+      source: 'recommendation'
     });
-    localStorage.setItem('shoppingCart', JSON.stringify(cart));
-    window.alert('Item added to cart!');
+    window.alert(`${product.name} is in your cart (${item.quantity}).`);
   };
 
   const title = analysis?.status === 'completed' && analysis.season_result
@@ -324,6 +322,7 @@ const Result: React.FC = () => {
               activeFilter={activeFilter}
               onFilterChange={setActiveFilter}
               onAddToCart={handleAddToCart}
+              analysisId={analysis.analysis_id}
             />
           </ReportSection>
         </>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import type { ProductRecommendation } from '../../types/analysis';
 import { formatLabel } from '../../utils/formatters';
@@ -63,8 +64,10 @@ const Badge = styled.span`
 
 const ProductImage = styled.img`
   width: 100%;
+  aspect-ratio: 4 / 3;
   border-radius: 8px;
   margin-bottom: 1rem;
+  object-fit: cover;
 `;
 
 const ProductTitle = styled.h3`
@@ -105,7 +108,6 @@ const ActionButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 1rem;
 
   &:hover {
     background: #d9793f;
@@ -114,6 +116,8 @@ const ActionButton = styled.button`
 `;
 
 const PurchaseLink = styled.a`
+  display: inline-flex;
+  align-items: center;
   padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.72);
   border-radius: 8px;
@@ -129,18 +133,38 @@ const PurchaseLink = styled.a`
   }
 `;
 
+const DetailLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: rgba(145, 83, 65, 0.1);
+  border-radius: 8px;
+  color: #915341;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.3s ease, background 0.3s ease;
+
+  &:hover {
+    background: rgba(145, 83, 65, 0.18);
+    transform: translateY(-2px);
+  }
+`;
+
 type Props = {
   products?: ProductRecommendation[];
   activeFilter: string;
   onFilterChange: (filter: string) => void;
   onAddToCart: (product: ProductRecommendation) => void;
+  analysisId?: string | null;
 };
 
 const ProductRecommendations: React.FC<Props> = ({
   products = [],
   activeFilter,
   onFilterChange,
-  onAddToCart
+  onAddToCart,
+  analysisId
 }) => {
   const categories = Array.from(new Set(products.map((product) => product.category)));
   const filteredProducts = activeFilter === 'all'
@@ -169,9 +193,9 @@ const ProductRecommendations: React.FC<Props> = ({
           <ProductCard key={product.id}>
             <ProductImage src={product.image} alt={product.name} />
             <ProductTitle>{product.name}</ProductTitle>
-            <ProductBrand>{product.brand}</ProductBrand>
+            <ProductBrand>{product.brand || 'Curated Match'}</ProductBrand>
             <BadgeRow>
-              {product.badges.map((badge) => (
+              {(product.badges || []).map((badge) => (
                 <Badge key={badge}>{badge}</Badge>
               ))}
             </BadgeRow>
@@ -179,15 +203,24 @@ const ProductRecommendations: React.FC<Props> = ({
             <ProductInfo><strong>Category:</strong> {formatLabel(product.category)}</ProductInfo>
             <ProductInfo><strong>Match Score:</strong> {product.score}</ProductInfo>
             <ProductInfo><strong>Price:</strong> ${product.price}</ProductInfo>
-            <ProductInfo>{product.short_description}</ProductInfo>
+            <ProductInfo>{product.short_description || `${product.shade} selected for your palette.`}</ProductInfo>
             <ProductInfo>{product.reason}</ProductInfo>
             <ActionRow>
+              {product.slug && (
+                <DetailLink
+                  to={`/products/${encodeURIComponent(product.slug)}${analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : ''}`}
+                >
+                  View Details
+                </DetailLink>
+              )}
               <ActionButton onClick={() => onAddToCart(product)}>
                 Add to Cart
               </ActionButton>
-              <PurchaseLink href={product.purchase_url} target="_blank" rel="noreferrer">
-                Buy Externally
-              </PurchaseLink>
+              {product.purchase_url && (
+                <PurchaseLink href={product.purchase_url} target="_blank" rel="noreferrer">
+                  Buy Externally
+                </PurchaseLink>
+              )}
             </ActionRow>
           </ProductCard>
         ))}

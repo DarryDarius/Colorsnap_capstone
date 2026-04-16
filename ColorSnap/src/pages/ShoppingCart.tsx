@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import type { CartItem } from '../utils/cart';
+import { clearCartItems, getCartTotal, readCartItems, writeCartItems } from '../utils/cart';
+import { formatLabel } from '../utils/formatters';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -31,7 +34,7 @@ const CartItems = styled.div`
   margin-top: 2rem;
 `;
 
-const CartItem = styled.div`
+const CartItemRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -79,10 +82,42 @@ const ItemDescription = styled.p`
   line-height: 1.4;
 `;
 
+const ItemMeta = styled.p`
+  margin: 0.3rem 0 0;
+  color: #666;
+  font-size: 0.85rem;
+`;
+
 const ItemPrice = styled.div`
   font-size: 1.2rem;
   color: #f96ed6;
   font-weight: 600;
+`;
+
+const QuantityControls = styled.div`
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const QuantityButton = styled.button`
+  background: #fff7f5;
+  color: #915341;
+  font-weight: 700;
+  padding: 0.4rem 0.7rem;
+
+  &:hover {
+    background: #f4d6dc;
+  }
+`;
+
+const QuantityValue = styled.span`
+  min-width: 2.5rem;
+  text-align: center;
+  color: #333;
+  font-weight: 700;
 `;
 
 const TotalSection = styled.div`
@@ -141,26 +176,29 @@ const EmptyMessage = styled.div`
   padding: 2rem;
 `;
 
-interface CartItem {
-  name: string;
-  price: string;
-  image: string;
-  description: string;
-}
-
 const ShoppingCart: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const items = JSON.parse(localStorage.getItem('shoppingCart') || '[]');
-    setCartItems(items);
+    setCartItems(readCartItems());
   }, []);
 
   const calculateTotal = () => {
-    return cartItems.reduce((total, item) => {
-      return total + parseFloat(item.price);
-    }, 0);
+    return getCartTotal(cartItems);
+  };
+
+  const updateQuantity = (itemId: string, nextQuantity: number) => {
+    const nextItems = cartItems
+      .map((item) => (
+        item.id === itemId
+          ? { ...item, quantity: Math.max(0, nextQuantity) }
+          : item
+      ))
+      .filter((item) => item.quantity > 0);
+
+    setCartItems(nextItems);
+    writeCartItems(nextItems);
   };
 
   const handleCheckout = () => {
@@ -174,7 +212,7 @@ const ShoppingCart: React.FC = () => {
   const handleClearCart = () => {
     if (window.confirm('Are you sure you want to clear the cart?')) {
       setCartItems([]);
-      localStorage.setItem('shoppingCart', JSON.stringify([]));
+      clearCartItems();
     }
   };
 
@@ -187,14 +225,24 @@ const ShoppingCart: React.FC = () => {
           <EmptyMessage>Your cart is empty.</EmptyMessage>
         ) : (
           cartItems.map((item, index) => (
-            <CartItem key={index}>
+            <CartItemRow key={item.id || index}>
               <ItemImage src={item.image} alt={item.name} />
               <ItemDetails>
                 <ItemName>{item.name}</ItemName>
                 <ItemDescription>{item.description}</ItemDescription>
+                <ItemMeta>
+                  {[item.brand, item.category ? formatLabel(item.category) : null, item.shade]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </ItemMeta>
               </ItemDetails>
-              <ItemPrice>${parseFloat(item.price).toFixed(2)}</ItemPrice>
-            </CartItem>
+              <QuantityControls aria-label={`${item.name} quantity`}>
+                <QuantityButton onClick={() => updateQuantity(item.id, item.quantity - 1)}>-</QuantityButton>
+                <QuantityValue>{item.quantity}</QuantityValue>
+                <QuantityButton onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</QuantityButton>
+              </QuantityControls>
+              <ItemPrice>${(parseFloat(item.price) * item.quantity).toFixed(2)}</ItemPrice>
+            </CartItemRow>
           ))
         )}
       </CartItems>

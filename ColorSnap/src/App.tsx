@@ -12,6 +12,7 @@ import About from './pages/About';
 import FAQ from './pages/FAQ';
 import Booking from './pages/Booking';
 import Payment from './pages/Payment';
+import ProductDetail from './pages/ProductDetail';
 
 const GlobalStyle = createGlobalStyle`
   :root {
@@ -253,6 +254,7 @@ function App() {
             <Route path="/faq" element={<FAQ />} />
             <Route path="/booking" element={<Booking />} />
             <Route path="/payment" element={<Payment />} />
+            <Route path="/products/:slug" element={<ProductDetail />} />
           </Routes>
         </MainContent>
         <Footer />

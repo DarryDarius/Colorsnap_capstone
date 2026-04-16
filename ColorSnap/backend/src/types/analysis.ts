@@ -75,6 +75,33 @@ export type ProductRecommendation = {
   badges: string[];
 };
 
+export type ProductDetail = {
+  id: string;
+  slug: string;
+  name: string;
+  brand: string;
+  category: ProductCategory;
+  shade: string;
+  image: string;
+  gallery: string[];
+  price: string;
+  currency: CurrencyCode;
+  description: string;
+  short_description: string;
+  finish?: ProductFinish;
+  intensity?: ProductIntensity;
+  best_for: string[];
+  why_it_matches_you: string;
+  use_cases: string[];
+  ingredients_highlights: string[];
+  retailer: {
+    name: string;
+    url: string;
+    affiliate?: boolean;
+  };
+  related_products: ProductRecommendation[];
+};
+
 export type AnalysisResult = {
   analysis_id: string;
   status: AnalysisStatus;

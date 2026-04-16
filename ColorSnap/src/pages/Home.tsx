@@ -232,7 +232,7 @@ const Home: React.FC = () => {
             <Link to="/about">Learn More</Link>
           </IntroText>
           <IntroImage>
-            <img src="/images/hero-bg-custom.jpg" alt="Custom Hero Image" />
+            <img src="/images/hero-bg-custom.jpg" alt="ColorSnap personalized palette preview" />
           </IntroImage>
         </IntroContainer>
       </IntroductionSection>

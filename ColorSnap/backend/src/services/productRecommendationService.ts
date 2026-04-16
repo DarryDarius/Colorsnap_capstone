@@ -2,6 +2,7 @@ import products from '../data/products.json';
 import { validateProducts } from '../schemas/productSchema';
 import type {
   ColorAttributes,
+  ProductDetail,
   Product,
   ProductCategory,
   ProductRecommendation,
@@ -18,6 +19,8 @@ type RecommendationInput = {
   limit?: number;
 };
 
+const titleCase = (value: string) => `${value[0].toUpperCase()}${value.slice(1)}`;
+
 const buildBadges = (product: Product, input: RecommendationInput) => {
   const badges = new Set<string>();
 
@@ -28,15 +31,15 @@ const buildBadges = (product: Product, input: RecommendationInput) => {
   }
 
   if (product.undertones.includes(input.attributes.undertone)) {
-    badges.add(`${input.attributes.undertone[0].toUpperCase()}${input.attributes.undertone.slice(1)} Undertone`);
+    badges.add(`${titleCase(input.attributes.undertone)} Undertone`);
   }
 
   if (product.saturation === input.attributes.saturation) {
-    badges.add(`${input.attributes.saturation[0].toUpperCase()}${input.attributes.saturation.slice(1)} Finish`);
+    badges.add(`${titleCase(input.attributes.saturation)} Finish`);
   }
 
   if (product.contrast_support?.includes(input.attributes.contrast)) {
-    badges.add(`${input.attributes.contrast[0].toUpperCase()}${input.attributes.contrast.slice(1)} Contrast`);
+    badges.add(`${titleCase(input.attributes.contrast)} Contrast`);
   }
 
   if (product.use_cases?.[0]) {
@@ -89,29 +92,105 @@ const scoreProduct = (product: Product, input: RecommendationInput) => {
   );
 };
 
+const toRecommendation = (product: Product, input: RecommendationInput): ProductRecommendation => ({
+  id: product.id,
+  slug: product.slug,
+  name: product.name,
+  brand: product.brand,
+  category: product.category,
+  shade: product.shade,
+  image: product.image,
+  short_description: product.short_description,
+  url: product.url,
+  purchase_url: product.retailer.url,
+  price: product.price,
+  currency: product.currency,
+  finish: product.finish,
+  intensity: product.intensity,
+  badges: buildBadges(product, input),
+  reason: buildReason(product, input),
+  score: scoreProduct(product, input)
+});
+
 export const getProductRecommendations = (input: RecommendationInput): ProductRecommendation[] => {
   return catalog
     .filter((product) => product.active)
     .filter((product) => !input.category || product.category === input.category)
-    .map((product) => ({
-      id: product.id,
-      slug: product.slug,
-      name: product.name,
-      brand: product.brand,
-      category: product.category,
-      shade: product.shade,
-      image: product.image,
-      short_description: product.short_description,
-      url: product.url,
-      purchase_url: product.retailer.url,
-      price: product.price,
-      currency: product.currency,
-      finish: product.finish,
-      intensity: product.intensity,
-      badges: buildBadges(product, input),
-      reason: buildReason(product, input),
-      score: scoreProduct(product, input)
-    }))
+    .map((product) => toRecommendation(product, input))
     .sort((first, second) => second.score - first.score)
     .slice(0, input.limit || 6);
+};
+
+export const getProductBySlug = (slug: string) => {
+  return catalog.find((product) => product.slug === slug && product.active) || null;
+};
+
+export const getRelatedProducts = (product: Product, limit = 3): ProductRecommendation[] => {
+  const related = catalog
+    .filter((candidate) => candidate.active && candidate.slug !== product.slug)
+    .filter((candidate) => candidate.category === product.category || candidate.seasons.some((season) => product.seasons.includes(season)))
+    .map((candidate) => {
+      const seasonOverlap = candidate.seasons.filter((season) => product.seasons.includes(season)).length;
+      const undertoneOverlap = candidate.undertones.filter((undertone) => product.undertones.includes(undertone)).length;
+      const brightnessMatch = candidate.brightness === product.brightness ? 1 : 0;
+      const saturationMatch = candidate.saturation === product.saturation ? 1 : 0;
+
+      return {
+        product: candidate,
+        score: (candidate.category === product.category ? 3 : 0) + (seasonOverlap * 2) + undertoneOverlap + brightnessMatch + saturationMatch
+      };
+    })
+    .sort((first, second) => second.score - first.score)
+    .slice(0, limit)
+    .map(({ product: candidate }) => {
+      const primarySeason = candidate.seasons.find((season) => product.seasons.includes(season)) || candidate.seasons[0];
+      const secondarySeason = candidate.seasons.find((season) => season !== primarySeason) || null;
+
+      return toRecommendation(candidate, {
+        primarySeason,
+        secondarySeason,
+        attributes: {
+          undertone: candidate.undertones[0],
+          brightness: candidate.brightness,
+          saturation: candidate.saturation,
+          contrast: candidate.contrast_support?.[0] || 'medium'
+        }
+      });
+    });
+
+  return related;
+};
+
+export const getProductDetailBySlug = (slug: string): ProductDetail | null => {
+  const product = getProductBySlug(slug);
+
+  if (!product) {
+    return null;
+  }
+
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.name,
+    brand: product.brand,
+    category: product.category,
+    shade: product.shade,
+    image: product.image,
+    gallery: product.gallery || [product.image],
+    price: product.price,
+    currency: product.currency,
+    description: product.description,
+    short_description: product.short_description,
+    finish: product.finish,
+    intensity: product.intensity,
+    best_for: [
+      ...product.seasons.slice(0, 2),
+      ...product.undertones.map((undertone) => `${titleCase(undertone)} Undertone`)
+    ].slice(0, 4),
+    why_it_matches_you: product.why_it_matches_template || product.short_description,
+    use_cases: product.use_cases || [],
+    ingredients_highlights: product.ingredients_highlights || [],
+    retailer: product.retailer,
+    related_products: getRelatedProducts(product)
+  };
 };

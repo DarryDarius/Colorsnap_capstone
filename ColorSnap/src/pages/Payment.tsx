@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import type { CartItem } from '../utils/cart';
+import { clearCartItems, getCartTotal, readCartItems } from '../utils/cart';
+import { formatLabel } from '../utils/formatters';
 
 const PaymentContainer = styled.div`
   max-width: 1000px;
@@ -49,7 +52,7 @@ const SummaryTitle = styled.h3`
   font-size: 1.3rem;
 `;
 
-const CartItem = styled.div`
+const CartItemRow = styled.div`
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -83,6 +86,12 @@ const ItemPrice = styled.p`
   color: #f96ed6;
   font-weight: 600;
   font-size: 0.9rem;
+`;
+
+const ItemMeta = styled.p`
+  margin: 0;
+  color: #777;
+  font-size: 0.8rem;
 `;
 
 const TotalSection = styled.div`
@@ -172,13 +181,6 @@ const SuccessMessage = styled.div`
   margin-bottom: 1rem;
 `;
 
-interface CartItem {
-  name: string;
-  price: string;
-  image: string;
-  description: string;
-}
-
 const Payment: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [formData, setFormData] = useState({
@@ -192,14 +194,11 @@ const Payment: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
-    const items = JSON.parse(localStorage.getItem('shoppingCart') || '[]');
-    setCartItems(items);
+    setCartItems(readCartItems());
   }, []);
 
   const calculateTotal = () => {
-    return cartItems.reduce((total, item) => {
-      return total + parseFloat(item.price);
-    }, 0);
+    return getCartTotal(cartItems);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -220,7 +219,7 @@ const Payment: React.FC = () => {
       setIsSuccess(true);
       
       // Clear cart after successful payment
-      localStorage.setItem('shoppingCart', JSON.stringify([]));
+      clearCartItems();
       setCartItems([]);
       
       // Reset form
@@ -334,13 +333,20 @@ const Payment: React.FC = () => {
         <OrderSummary>
           <SummaryTitle>Order Summary</SummaryTitle>
           {cartItems.map((item, index) => (
-            <CartItem key={index}>
+            <CartItemRow key={item.id || index}>
               <ItemImage src={item.image} alt={item.name} />
               <ItemDetails>
                 <ItemName>{item.name}</ItemName>
-                <ItemPrice>${parseFloat(item.price).toFixed(2)}</ItemPrice>
+                <ItemMeta>
+                  {[item.category ? formatLabel(item.category) : null, item.shade]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </ItemMeta>
+                <ItemPrice>
+                  {item.quantity} x ${parseFloat(item.price).toFixed(2)}
+                </ItemPrice>
               </ItemDetails>
-            </CartItem>
+            </CartItemRow>
           ))}
           <TotalSection>
             <TotalAmount>Total: ${calculateTotal().toFixed(2)}</TotalAmount>
