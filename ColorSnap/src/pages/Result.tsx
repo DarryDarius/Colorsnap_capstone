@@ -12,25 +12,44 @@ import { getAnalysis } from '../services/api';
 import type { AnalysisResult, ProductRecommendation } from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
 
-const ResultSection = styled.section`
-  background: linear-gradient(135deg, #f96ed6, #eff66f);
-  padding: 3rem 2rem;
-  margin: 2rem auto;
-  max-width: 900px;
-  border-radius: 15px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  text-align: center;
+const PageShell = styled.section`
+  min-height: calc(100vh - 72px);
+  background:
+    linear-gradient(180deg, rgba(251, 238, 241, 0.72) 0%, rgba(255, 252, 250, 0) 34%),
+    var(--bg-page);
+  padding: var(--space-7) var(--space-6) var(--space-9);
 
   @media (max-width: 768px) {
-    margin: 1rem;
-    padding: 2rem 1rem;
+    padding: var(--space-6) var(--space-4) var(--space-8);
   }
 `;
 
-const ResultTitle = styled.h2`
-  font-size: 2.5rem;
-  color: #ffffff;
-  margin-bottom: 1.5rem;
+const ResultContainer = styled.div`
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--container-lg);
+  margin: 0 auto;
+`;
+
+const ResultSection = styled.section`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-7) var(--space-6);
+  text-align: center;
+
+  @media (max-width: 768px) {
+    padding: var(--space-6) var(--space-4);
+  }
+`;
+
+const ResultTitle = styled.h1`
+  color: var(--text-primary);
+  font-size: clamp(2.25rem, 5vw, var(--font-4xl));
+  line-height: 1.05;
+  margin: 0 auto var(--space-4);
+  max-width: 820px;
 
   @media (max-width: 768px) {
     font-size: 2rem;
@@ -38,67 +57,67 @@ const ResultTitle = styled.h2`
 `;
 
 const ResultDescription = styled.p`
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
+  color: var(--text-secondary);
+  font-size: var(--font-lg);
+  line-height: 1.7;
+  margin: 0 auto var(--space-5);
   max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
-  color: #2c2c2c;
 `;
 
 const ResultImage = styled.img`
-  max-width: 300px;
-  border-radius: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  border: 3px solid white;
-  margin: 1rem 0 2rem;
+  aspect-ratio: 4 / 5;
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  margin: 0 auto var(--space-6);
+  max-width: 280px;
+  object-fit: cover;
+  width: 100%;
 `;
 
 const ActionButtons = styled.div`
   display: flex;
-  gap: 1rem;
-  justify-content: center;
   flex-wrap: wrap;
-  margin-top: 2rem;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: var(--space-6);
 `;
 
-const ActionButton = styled.button`
-  padding: 0.75rem 1.5rem;
-  background: #ffffff;
-  color: #f886dc;
-  border: none;
-  border-radius: 50px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+  background: ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary)' : 'var(--surface)')};
+  border: 1px solid ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary)' : 'var(--border-soft)')};
+  border-radius: var(--radius-md);
+  color: ${(props) => (props.$variant === 'primary' ? 'var(--text-inverse)' : 'var(--text-primary)')};
+  font-size: var(--font-md);
+  font-weight: 700;
+  padding: 0.85rem 1.15rem;
 
   &:hover {
-    background: #f0cee8;
-    transform: translateY(-2px);
+    background: ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary-hover)' : 'var(--brand-primary-pale)')};
+    border-color: ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary-hover)' : 'var(--brand-primary-soft)')};
+    transform: translateY(-1px);
   }
 `;
 
 const ReportSection = styled.section`
-  background: #fffdfb;
-  padding: 3rem 2rem;
-  margin: 2rem auto;
-  max-width: 1200px;
-  border-radius: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-6);
 
   @media (max-width: 768px) {
-    margin: 1rem;
-    padding: 2rem 1rem;
+    padding: var(--space-5);
   }
 `;
 
 const SectionTitle = styled.h2`
-  font-size: 2.2rem;
-  margin-bottom: 2rem;
-  color: #000000;
+  color: var(--text-primary);
+  font-size: var(--font-2xl);
+  line-height: 1.2;
+  margin-bottom: var(--space-5);
+  text-align: center;
 
   @media (max-width: 768px) {
     font-size: 1.8rem;
@@ -110,16 +129,21 @@ const ReportBlock = styled.div`
 `;
 
 const StatusBox = styled.div`
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  color: #333;
-  margin: 1rem auto 0;
+  background: var(--surface-sage);
+  border: 1px solid #DDE8DA;
+  border-radius: var(--radius-md);
+  color: var(--accent-olive);
+  font-weight: 600;
+  margin: var(--space-5) auto 0;
   max-width: 640px;
-  padding: 1rem;
+  padding: var(--space-4);
+  text-align: left;
 `;
 
 const ErrorBox = styled(StatusBox)`
-  color: #b42318;
+  background: #FFF4F2;
+  border-color: #F0C9C3;
+  color: var(--error);
 `;
 
 const ProcessingList = styled.ul`
@@ -243,7 +267,8 @@ const Result: React.FC = () => {
     : 'Analysis Result';
 
   return (
-    <>
+    <PageShell>
+      <ResultContainer>
       <ResultSection>
         <ResultTitle>{title}</ResultTitle>
         {uploadedPhoto && (
@@ -278,7 +303,7 @@ const Result: React.FC = () => {
         )}
 
         <ActionButtons>
-          <ActionButton onClick={() => navigate('/analysis')}>
+          <ActionButton $variant="primary" onClick={() => navigate('/analysis')}>
             Upload Another Photo
           </ActionButton>
           <ActionButton onClick={() => navigate('/consultation')}>
@@ -327,7 +352,8 @@ const Result: React.FC = () => {
           </ReportSection>
         </>
       )}
-    </>
+      </ResultContainer>
+    </PageShell>
   );
 };
 

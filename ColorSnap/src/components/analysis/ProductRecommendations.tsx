@@ -2,152 +2,169 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import type { ProductRecommendation } from '../../types/analysis';
-import { formatLabel } from '../../utils/formatters';
+import { formatLabel, isRealExternalUrl } from '../../utils/formatters';
 
 const FilterBar = styled.div`
-  margin-bottom: 2rem;
   display: flex;
-  justify-content: center;
-  gap: 0.5rem;
   flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-bottom: var(--space-6);
 `;
 
 const FilterButton = styled.button<{ $active: boolean }>`
-  padding: 0.5rem 1rem;
-  background: ${(props) => (props.$active ? '#d9793f' : '#f092d8')};
-  border: none;
-  color: #fff;
-  border-radius: 8px;
+  background: ${(props) => (props.$active ? 'var(--brand-primary)' : 'var(--surface)')};
+  border: 1px solid ${(props) => (props.$active ? 'var(--brand-primary)' : 'var(--border-soft)')};
+  border-radius: var(--radius-md);
+  color: ${(props) => (props.$active ? 'var(--text-inverse)' : 'var(--text-secondary)')};
   cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: ${(props) => (props.$active ? '600' : '400')};
+  font-size: var(--font-sm);
+  font-weight: 700;
+  padding: 0.65rem 0.9rem;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 
   &:hover {
-    background: #d9793f;
+    background: ${(props) => (props.$active ? 'var(--brand-primary-hover)' : 'var(--brand-primary-pale)')};
+    border-color: ${(props) => (props.$active ? 'var(--brand-primary-hover)' : 'var(--brand-primary-soft)')};
+    color: ${(props) => (props.$active ? 'var(--text-inverse)' : 'var(--brand-primary)')};
+    transform: translateY(-1px);
   }
 `;
 
 const ProductsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  gap: var(--space-4);
 `;
 
 const ProductCard = styled.div`
-  background: #ffebd4;
-  border-radius: 8px;
-  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  display: grid;
+  gap: var(--space-3);
+  overflow: hidden;
+  padding: var(--space-4);
   text-align: left;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease;
+  transition: border-color 160ms ease, transform 160ms ease;
 
   &:hover {
-    transform: translateY(-5px);
+    border-color: var(--brand-primary-soft);
+    transform: translateY(-2px);
   }
 `;
 
 const BadgeRow = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-bottom: 0.9rem;
+  gap: var(--space-2);
 `;
 
 const Badge = styled.span`
-  background: rgba(255, 255, 255, 0.72);
-  border-radius: 999px;
-  color: #915341;
-  font-size: 0.78rem;
+  background: var(--brand-primary-pale);
+  border-radius: var(--radius-md);
+  color: var(--brand-primary);
+  font-size: var(--font-xs);
   font-weight: 700;
-  padding: 0.3rem 0.65rem;
+  padding: 0.35rem 0.65rem;
 `;
 
 const ProductImage = styled.img`
-  width: 100%;
   aspect-ratio: 4 / 3;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  background: var(--surface-warm);
+  border-radius: var(--radius-md);
   object-fit: cover;
+  width: 100%;
 `;
 
 const ProductTitle = styled.h3`
-  font-size: 1.2rem;
-  margin-bottom: 0.2rem;
-  color: #c655ad;
+  color: var(--text-primary);
+  font-size: var(--font-lg);
+  line-height: 1.25;
 `;
 
 const ProductBrand = styled.p`
-  color: #915341;
-  font-size: 0.88rem;
+  color: var(--brand-primary);
+  font-size: var(--font-sm);
   font-weight: 700;
-  letter-spacing: 0.02em;
-  margin-bottom: 0.85rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 `;
 
 const ProductInfo = styled.p`
-  font-size: 0.9rem;
-  margin-bottom: 0.5rem;
-  color: #2c2c2c;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.6;
+  margin: 0;
+
+  strong {
+    color: var(--text-primary);
+  }
 `;
 
 const ActionRow = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 `;
 
 const ActionButton = styled.button`
-  padding: 0.5rem 1rem;
-  background: linear-gradient(135deg, #f96ed6, #eff66f);
-  border: none;
-  color: #fff;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  background: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-inverse);
   cursor: pointer;
-  transition: all 0.3s ease;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  padding: 0.65rem 0.9rem;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 
   &:hover {
-    background: #d9793f;
-    transform: translateY(-2px);
+    background: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
+    transform: translateY(-1px);
   }
 `;
 
 const PurchaseLink = styled.a`
   display: inline-flex;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background: rgba(255, 255, 255, 0.72);
-  border-radius: 8px;
-  color: #915341;
-  font-size: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
   font-weight: 700;
+  padding: 0.65rem 0.9rem;
   text-decoration: none;
-  transition: transform 0.3s ease, background 0.3s ease;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 
   &:hover {
-    background: #ffffff;
-    transform: translateY(-2px);
+    background: var(--brand-primary-pale);
+    border-color: var(--brand-primary-soft);
+    transform: translateY(-1px);
   }
 `;
 
 const DetailLink = styled(Link)`
   display: inline-flex;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background: rgba(145, 83, 65, 0.1);
-  border-radius: 8px;
-  color: #915341;
-  font-size: 0.9rem;
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
   font-weight: 700;
+  padding: 0.65rem 0.9rem;
   text-decoration: none;
-  transition: transform 0.3s ease, background 0.3s ease;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 
   &:hover {
-    background: rgba(145, 83, 65, 0.18);
-    transform: translateY(-2px);
+    background: var(--brand-primary-pale);
+    border-color: var(--brand-primary-soft);
+    transform: translateY(-1px);
   }
 `;
 
@@ -216,7 +233,7 @@ const ProductRecommendations: React.FC<Props> = ({
               <ActionButton onClick={() => onAddToCart(product)}>
                 Add to Cart
               </ActionButton>
-              {product.purchase_url && (
+              {isRealExternalUrl(product.purchase_url) && (
                 <PurchaseLink href={product.purchase_url} target="_blank" rel="noreferrer">
                   Buy Externally
                 </PurchaseLink>

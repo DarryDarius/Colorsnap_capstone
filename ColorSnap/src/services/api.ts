@@ -2,6 +2,12 @@ import type { AnalysisResult, CreateAnalysisResponse, ProductDetail } from '../t
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
 
+export type BackendHealth = {
+  status: 'ok';
+  ai_mode: 'mock' | 'openai';
+  timestamp: string;
+};
+
 type ApiErrorBody = {
   error?: {
     code?: string;
@@ -42,4 +48,9 @@ export const getProductDetail = async (slug: string, analysisId?: string | null)
   const query = analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : '';
   const response = await fetch(`${API_BASE_URL}/api/v1/products/${encodeURIComponent(slug)}${query}`);
   return readJson<ProductDetail>(response);
+};
+
+export const getBackendHealth = async (): Promise<BackendHealth> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/health`);
+  return readJson<BackendHealth>(response);
 };

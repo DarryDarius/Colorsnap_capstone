@@ -13,17 +13,17 @@ A modern React application for AI-powered personal color analysis, built with Ty
 
 ## Technology Stack
 
-- **React 18** with TypeScript
-- **React Router** for navigation
+- **React 19** with TypeScript
+- **React Router 7** for navigation
 - **Styled Components** for styling
 - **Local Storage** for state management
-- **Google Fonts** (Montserrat)
+- **Express** backend for analysis and product APIs
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (version 14 or higher)
+- Node.js (version 20 or higher)
 - npm or yarn
 
 ### Installation
@@ -46,17 +46,24 @@ npm start
 
 The application will open in your browser at `http://localhost:3000`.
 
-4. In another terminal, start the mock AI backend:
+4. In another terminal, start the analysis backend:
 ```bash
 npm run backend:dev
 ```
 
 The backend runs at `http://localhost:4000`. The React dev server proxies `/api/v1` requests there.
 
+The backend supports two AI modes:
+
+- `MOCK_AI=true` returns a deterministic demo response for local development.
+- `MOCK_AI=false` uses the configured OpenAI model and requires `OPENAI_API_KEY`.
+
+Copy `backend/.env.example` to `backend/.env` and set the values you need before starting the backend.
+
 ### Available Scripts
 
 - `npm start` - Runs the app in development mode
-- `npm run backend:dev` - Builds and starts the mock AI backend
+- `npm run backend:dev` - Builds and starts the analysis backend
 - `npm run backend:build` - Compiles the backend TypeScript
 - `npm run backend:start` - Starts the compiled backend
 - `npm test` - Launches the test runner
@@ -79,7 +86,8 @@ src/
 │   ├── About.tsx      # About page
 │   ├── FAQ.tsx        # Frequently asked questions
 │   ├── Booking.tsx    # Consultation booking form
-│   └── Payment.tsx    # Payment processing
+│   ├── Payment.tsx    # Payment processing
+│   └── ProductDetail.tsx # Personalized product detail page
 ├── hooks/             # Custom React hooks
 ├── utils/             # Utility functions
 ├── types/             # TypeScript type definitions
@@ -91,7 +99,7 @@ src/
 ### 1. Photo Upload and Analysis
 - File input with drag-and-drop support
 - Image preview before analysis
-- Mock AI backend analysis with loading and polling states
+- OpenAI or demo-mode backend analysis with loading and polling states
 - Results fetched from `/api/v1/analyses/:analysis_id`
 
 ### 2. Product Recommendations

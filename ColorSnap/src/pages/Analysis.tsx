@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { createAnalysis } from '../services/api';
+import { createAnalysis, getBackendHealth } from '../services/api';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -343,6 +343,8 @@ const StepDot = styled.span`
   width: 7px;
 `;
 
+type AiMode = 'mock' | 'openai' | 'unknown';
+
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const formatFileSize = (size: number) => {
@@ -359,8 +361,37 @@ const Analysis: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiMode, setAiMode] = useState<AiMode>('unknown');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getBackendHealth()
+      .then((health) => {
+        if (isMounted) {
+          setAiMode(health.ai_mode);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setAiMode('unknown');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const modeLabel = aiMode === 'openai'
+    ? 'Live OpenAI analysis'
+    : aiMode === 'mock'
+      ? 'Demo analysis mode'
+      : 'Analysis service';
+
+  const pipelineTitle = aiMode === 'openai' ? 'Live AI flow' : aiMode === 'mock' ? 'Demo AI flow' : 'Analysis flow';
 
   const setFile = (file: File) => {
     if (!allowedTypes.has(file.type)) {
@@ -440,7 +471,7 @@ const Analysis: React.FC = () => {
               <PanelTitle>Start with one natural-light photo</PanelTitle>
               <PanelCopy>Use a front-facing image with your face unobstructed.</PanelCopy>
             </div>
-            <PanelBadge>Private analysis</PanelBadge>
+            <PanelBadge>{modeLabel}</PanelBadge>
           </PanelHeader>
 
           <FileInput
@@ -542,7 +573,7 @@ const Analysis: React.FC = () => {
             </PrivacyNote>
 
             <Pipeline>
-              <PipelineTitle>Mock AI flow</PipelineTitle>
+              <PipelineTitle>{pipelineTitle}</PipelineTitle>
               <PipelineSteps>
                 <PipelineStep><StepDot /> Photo quality check</PipelineStep>
                 <PipelineStep><StepDot /> Seasonal color estimate</PipelineStep>

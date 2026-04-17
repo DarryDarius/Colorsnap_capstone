@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { getProductDetail } from '../services/api';
 import type { ProductDetail as ProductDetailType, ProductRecommendation } from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
-import { formatLabel } from '../utils/formatters';
+import { formatLabel, isRealExternalUrl } from '../utils/formatters';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -330,6 +330,8 @@ const ProductDetail: React.FC = () => {
     window.alert(`${item.name} is in your cart (${cartItem.quantity}).`);
   };
 
+  const hasPurchaseUrl = isRealExternalUrl(product?.retailer.url);
+
   if (isLoading) {
     return (
       <PageShell>
@@ -426,9 +428,11 @@ const ProductDetail: React.FC = () => {
             <ActionRow>
               <ActionButton onClick={() => handleAddToCart(product)}>Add to Cart</ActionButton>
               <SecondaryLink to="/shopping-cart">View Cart</SecondaryLink>
-              <PurchaseLink href={product.retailer.url} target="_blank" rel="noreferrer">
-                Buy from {product.retailer.name}
-              </PurchaseLink>
+              {hasPurchaseUrl && (
+                <PurchaseLink href={product.retailer.url} target="_blank" rel="noreferrer">
+                  Buy from {product.retailer.name}
+                </PurchaseLink>
+              )}
             </ActionRow>
             {analysisId && (
               <PersonalizationNote>
