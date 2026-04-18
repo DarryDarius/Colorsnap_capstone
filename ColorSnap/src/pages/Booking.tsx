@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
+import { createBooking } from '../services/api';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -213,6 +214,12 @@ const SuccessMessage = styled.div`
   padding: var(--space-4);
 `;
 
+const WarningMessage = styled(SuccessMessage)`
+  background: #FFF8EC;
+  border-color: #E8D5B8;
+  color: var(--warning);
+`;
+
 const ErrorPanel = styled(Panel)`
   text-align: center;
 `;
@@ -280,6 +287,9 @@ const Booking: React.FC = () => {
     message: ''
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
 
   const selectedExpert = expertId ? experts[expertId as keyof typeof experts] : null;
 
@@ -291,8 +301,37 @@ const Booking: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!selectedExpert) return;
+
+    setIsSubmitting(true);
+    setSaveWarning(null);
+    setBookingId(null);
+
+    try {
+      const booking = await createBooking({
+        expert_id: expertId || '',
+        expert_name: selectedExpert.name,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        date: formData.date,
+        time: formData.time,
+        duration: formData.duration as '30' | '45' | '60',
+        message: formData.message || undefined
+      });
+      setBookingId(booking.booking_id);
+    } catch (error) {
+      setSaveWarning(
+        error instanceof Error
+          ? `Demo request completed locally, but backend save failed: ${error.message}`
+          : 'Demo request completed locally, but backend save failed.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+
     setIsSubmitted(true);
 
     window.setTimeout(() => {
@@ -306,6 +345,8 @@ const Booking: React.FC = () => {
         message: ''
       });
       setIsSubmitted(false);
+      setBookingId(null);
+      setSaveWarning(null);
     }, 3000);
   };
 
@@ -353,9 +394,12 @@ const Booking: React.FC = () => {
           <Panel>
             {isSubmitted && (
               <SuccessMessage>
-                Thank you. Your booking request has been submitted. In a production version, a confirmation email would follow.
+                Thank you. Your booking request has been submitted.
+                {bookingId ? ` Backend record: ${bookingId}.` : ' In a production version, a confirmation email would follow.'}
               </SuccessMessage>
             )}
+
+            {saveWarning && <WarningMessage>{saveWarning}</WarningMessage>}
 
             <Form onSubmit={handleSubmit}>
               <FormGrid>
@@ -455,8 +499,8 @@ const Booking: React.FC = () => {
                 </FullWidthGroup>
               </FormGrid>
 
-              <SubmitButton type="submit" disabled={isSubmitted}>
-                {isSubmitted ? 'Submitting...' : 'Book Consultation'}
+              <SubmitButton type="submit" disabled={isSubmitting || isSubmitted}>
+                {isSubmitting || isSubmitted ? 'Submitting...' : 'Book Consultation'}
               </SubmitButton>
             </Form>
           </Panel>

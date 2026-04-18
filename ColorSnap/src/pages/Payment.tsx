@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
+import { createDemoOrder } from '../services/api';
 import type { CartItem } from '../utils/cart';
 import { clearCartItems, getCartTotal, readCartItems } from '../utils/cart';
 import { formatLabel } from '../utils/formatters';
@@ -255,6 +256,18 @@ const ConfirmationPanel = styled(Panel)`
   text-align: center;
 `;
 
+const ConfirmationNote = styled.div<{ $tone?: 'warning' }>`
+  background: ${(props) => (props.$tone === 'warning' ? '#FFF8EC' : 'var(--surface-sage)')};
+  border: 1px solid ${(props) => (props.$tone === 'warning' ? '#E8D5B8' : '#DDE8DA')};
+  border-radius: var(--radius-md);
+  color: ${(props) => (props.$tone === 'warning' ? 'var(--warning)' : 'var(--success)')};
+  font-weight: 700;
+  line-height: 1.6;
+  margin: var(--space-5) auto 0;
+  max-width: 680px;
+  padding: var(--space-4);
+`;
+
 const ConfirmationGrid = styled.div`
   display: grid;
   gap: var(--space-3);
@@ -302,6 +315,8 @@ const Payment: React.FC = () => {
   });
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
 
   useEffect(() => {
     setCartItems(readCartItems());
@@ -325,9 +340,22 @@ const Payment: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsProcessing(true);
+    setOrderId(null);
+    setSaveWarning(null);
+
+    try {
+      const order = await createDemoOrder(formData.email, cartItems);
+      setOrderId(order.order_id);
+    } catch (error) {
+      setSaveWarning(
+        error instanceof Error
+          ? `Demo checkout completed locally, but backend order save failed: ${error.message}`
+          : 'Demo checkout completed locally, but backend order save failed.'
+      );
+    }
 
     window.setTimeout(() => {
       setConfirmedItems(cartItems);
@@ -356,6 +384,16 @@ const Payment: React.FC = () => {
             <Description>
               This demo checkout was processed locally for the capstone flow. No real payment was charged.
             </Description>
+            {orderId && (
+              <ConfirmationNote>
+                Backend order record saved: {orderId}.
+              </ConfirmationNote>
+            )}
+            {saveWarning && (
+              <ConfirmationNote $tone="warning">
+                {saveWarning}
+              </ConfirmationNote>
+            )}
             <ConfirmationGrid>
               {confirmedItems.map((item) => (
                 <ConfirmationItem key={item.id}>

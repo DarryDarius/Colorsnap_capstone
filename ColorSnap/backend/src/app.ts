@@ -1,6 +1,8 @@
 import express from 'express';
 import analysesRouter from './routes/analyses';
+import bookingsRouter from './routes/bookings';
 import healthRouter from './routes/health';
+import ordersRouter from './routes/orders';
 import productsRouter from './routes/products';
 
 const app = express();
@@ -22,6 +24,8 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/analyses', analysesRouter);
+app.use('/api/v1/bookings', bookingsRouter);
+app.use('/api/v1/orders', ordersRouter);
 app.use('/api/v1/products', productsRouter);
 
 app.use((_req, res) => {
