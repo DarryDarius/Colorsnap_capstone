@@ -13,6 +13,7 @@ import FAQ from './pages/FAQ';
 import Booking from './pages/Booking';
 import Payment from './pages/Payment';
 import ProductDetail from './pages/ProductDetail';
+import SharedResult from './pages/SharedResult';
 
 const GlobalStyle = createGlobalStyle`
   :root {
@@ -255,6 +256,7 @@ function App() {
             <Route path="/booking" element={<Booking />} />
             <Route path="/payment" element={<Payment />} />
             <Route path="/products/:slug" element={<ProductDetail />} />
+            <Route path="/share/:shareId" element={<SharedResult />} />
           </Routes>
         </MainContent>
         <Footer />

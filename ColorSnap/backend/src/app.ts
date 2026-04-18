@@ -4,6 +4,8 @@ import bookingsRouter from './routes/bookings';
 import healthRouter from './routes/health';
 import ordersRouter from './routes/orders';
 import productsRouter from './routes/products';
+import savedResultsRouter from './routes/savedResults';
+import sharesRouter from './routes/shares';
 
 const app = express();
 const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
@@ -27,6 +29,8 @@ app.use('/api/v1/analyses', analysesRouter);
 app.use('/api/v1/bookings', bookingsRouter);
 app.use('/api/v1/orders', ordersRouter);
 app.use('/api/v1/products', productsRouter);
+app.use('/api/v1/saved-results', savedResultsRouter);
+app.use('/api/v1/shares', sharesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({

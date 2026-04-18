@@ -2,14 +2,19 @@ import fs from 'fs';
 import path from 'path';
 import type { AnalysisResult } from '../types/analysis';
 import type { BookingRecord, OrderRecord } from '../types/commerce';
+import type { SavedResultRecord, ShareRecord } from '../types/share';
 
 const analyses = new Map<string, AnalysisResult>();
 const bookings = new Map<string, BookingRecord>();
 const orders = new Map<string, OrderRecord>();
+const savedResults = new Map<string, SavedResultRecord>();
+const shares = new Map<string, ShareRecord>();
 const storageDirectory = path.resolve(__dirname, '../../.data');
 const analysesFilePath = path.join(storageDirectory, 'analyses.json');
 const bookingsFilePath = path.join(storageDirectory, 'bookings.json');
 const ordersFilePath = path.join(storageDirectory, 'orders.json');
+const savedResultsFilePath = path.join(storageDirectory, 'saved-results.json');
+const sharesFilePath = path.join(storageDirectory, 'shares.json');
 
 const persistMap = <T>(filePath: string, records: Map<string, T>) => {
   fs.mkdirSync(storageDirectory, { recursive: true });
@@ -50,10 +55,14 @@ const createRecordId = (prefix: string) => {
 const persistAnalyses = () => persistMap(analysesFilePath, analyses);
 const persistBookings = () => persistMap(bookingsFilePath, bookings);
 const persistOrders = () => persistMap(ordersFilePath, orders);
+const persistSavedResults = () => persistMap(savedResultsFilePath, savedResults);
+const persistShares = () => persistMap(sharesFilePath, shares);
 
 hydrateMap(analysesFilePath, analyses, 'analyses');
 hydrateMap(bookingsFilePath, bookings, 'bookings');
 hydrateMap(ordersFilePath, orders, 'orders');
+hydrateMap(savedResultsFilePath, savedResults, 'saved results');
+hydrateMap(sharesFilePath, shares, 'shares');
 
 export const createProcessingAnalysis = () => {
   const analysis: AnalysisResult = {
@@ -152,3 +161,44 @@ export const getOrderRecord = (orderId: string) => {
 
 export const getStoredBookingCount = () => bookings.size;
 export const getStoredOrderCount = () => orders.size;
+
+export const createSavedResultRecord = (
+  input: Omit<SavedResultRecord, 'saved_result_id' | 'created_at'>
+) => {
+  const savedResult: SavedResultRecord = {
+    ...input,
+    saved_result_id: createRecordId('save'),
+    created_at: new Date().toISOString()
+  };
+
+  savedResults.set(savedResult.saved_result_id, savedResult);
+  persistSavedResults();
+  return savedResult;
+};
+
+export const getSavedResultRecord = (savedResultId: string) => {
+  return savedResults.get(savedResultId) || null;
+};
+
+export const createShareRecord = (
+  input: Omit<ShareRecord, 'share_id' | 'share_url' | 'created_at'>
+) => {
+  const shareId = createRecordId('shr');
+  const share: ShareRecord = {
+    ...input,
+    share_id: shareId,
+    share_url: `/share/${shareId}`,
+    created_at: new Date().toISOString()
+  };
+
+  shares.set(share.share_id, share);
+  persistShares();
+  return share;
+};
+
+export const getShareRecord = (shareId: string) => {
+  return shares.get(shareId) || null;
+};
+
+export const getStoredSavedResultCount = () => savedResults.size;
+export const getStoredShareCount = () => shares.size;

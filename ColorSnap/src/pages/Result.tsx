@@ -8,6 +8,7 @@ import FashionRecommendations from '../components/analysis/FashionRecommendation
 import ImageQualityNotice from '../components/analysis/ImageQualityNotice';
 import PaletteSection from '../components/analysis/PaletteSection';
 import ProductRecommendations from '../components/analysis/ProductRecommendations';
+import ShareResultPanel from '../components/share/ShareResultPanel';
 import { getAnalysis } from '../services/api';
 import type { AnalysisResult, ProductRecommendation } from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
@@ -241,24 +242,6 @@ const Result: React.FC = () => {
     };
   }, [analysis?.status]);
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'My Color Palette Result',
-          text: 'This is my color palette result, come check it out!',
-          url: window.location.href
-        });
-      } catch (shareError) {
-        // Share failed silently.
-      }
-    } else {
-      navigator.clipboard.writeText(window.location.href)
-        .then(() => window.alert('Your browser does not support direct sharing. The share link has been copied to the clipboard.'))
-        .catch(() => window.alert('Unable to copy share link, please copy manually.'));
-    }
-  };
-
   const handleAddToCart = (product: ProductRecommendation) => {
     const { item } = addProductToCart(product, {
       analysisId: analysis?.analysis_id,
@@ -345,9 +328,6 @@ const Result: React.FC = () => {
           <ActionButton onClick={() => navigate('/consultation')}>
             Book Expert Consultation
           </ActionButton>
-          <ActionButton onClick={handleShare}>
-            Share My Color Palette
-          </ActionButton>
         </ActionButtons>
       </ResultSection>
 
@@ -364,6 +344,11 @@ const Result: React.FC = () => {
           <ReportSection>
             <SectionTitle>Recommended Palette</SectionTitle>
             <PaletteSection colors={analysis.recommended_palette} />
+          </ReportSection>
+
+          <ReportSection>
+            <SectionTitle>Save and Share Your Result</SectionTitle>
+            <ShareResultPanel analysis={analysis} uploadedPhoto={uploadedPhoto} />
           </ReportSection>
 
           <ReportSection>

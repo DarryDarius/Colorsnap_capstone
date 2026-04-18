@@ -1,4 +1,4 @@
-import { createBooking, createDemoOrder } from './api';
+import { createBooking, createDemoOrder, createSavedResult, createShare, getShare } from './api';
 import type { CartItem } from '../utils/cart';
 
 const mockFetch = jest.fn();
@@ -94,4 +94,85 @@ test('createDemoOrder posts cart items to the backend', async () => {
     email: 'test@example.com',
     items: [expect.objectContaining({ id: 'lip_001' })]
   });
+});
+
+test('createSavedResult posts analysis id and privacy setting', async () => {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      saved_result_id: 'save_test',
+      analysis_id: 'ana_test',
+      title: 'My ColorSnap Result: Warm Autumn',
+      primary_season: 'Warm Autumn',
+      secondary_season: 'Soft Autumn',
+      palette: [],
+      summary: 'Warm and muted.',
+      include_photo: false,
+      created_at: '2026-04-18T00:00:00.000Z'
+    })
+  });
+
+  const savedResult = await createSavedResult('ana_test', false);
+
+  expect(savedResult.saved_result_id).toBe('save_test');
+  expect(mockFetch).toHaveBeenCalledWith('/api/v1/saved-results', expect.objectContaining({
+    method: 'POST'
+  }));
+  expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+    analysis_id: 'ana_test',
+    include_photo: false
+  });
+});
+
+test('createShare posts saved result context and getShare fetches by id', async () => {
+  mockFetch
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        share_id: 'shr_test',
+        analysis_id: 'ana_test',
+        saved_result_id: 'save_test',
+        visibility: 'unlisted',
+        title: 'My ColorSnap Result: Warm Autumn',
+        description: 'Warm and muted.',
+        primary_season: 'Warm Autumn',
+        secondary_season: 'Soft Autumn',
+        palette: [],
+        include_photo: false,
+        image_url: null,
+        share_url: '/share/shr_test',
+        created_at: '2026-04-18T00:00:00.000Z'
+      })
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        share_id: 'shr_test',
+        analysis_id: 'ana_test',
+        visibility: 'unlisted',
+        title: 'My ColorSnap Result: Warm Autumn',
+        description: 'Warm and muted.',
+        primary_season: 'Warm Autumn',
+        secondary_season: 'Soft Autumn',
+        palette: [],
+        include_photo: false,
+        image_url: null,
+        share_url: '/share/shr_test',
+        created_at: '2026-04-18T00:00:00.000Z'
+      })
+    });
+
+  const share = await createShare({
+    analysis_id: 'ana_test',
+    saved_result_id: 'save_test',
+    include_photo: false
+  });
+  const fetchedShare = await getShare('shr_test');
+
+  expect(share.share_url).toBe('/share/shr_test');
+  expect(fetchedShare.share_id).toBe('shr_test');
+  expect(mockFetch).toHaveBeenNthCalledWith(1, '/api/v1/shares', expect.objectContaining({
+    method: 'POST'
+  }));
+  expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/v1/shares/shr_test');
 });

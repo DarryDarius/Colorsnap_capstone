@@ -38,6 +38,42 @@ export type OrderRecord = {
   created_at: string;
 };
 
+export type SavedResultRecord = {
+  saved_result_id: string;
+  analysis_id: string;
+  title: string;
+  primary_season: string;
+  secondary_season: string | null;
+  confidence?: number;
+  palette: Array<{
+    name: string;
+    hex: string;
+    use_case: string;
+  }>;
+  summary: string;
+  include_photo: boolean;
+  created_at: string;
+};
+
+export type ShareRecord = {
+  share_id: string;
+  analysis_id: string;
+  saved_result_id?: string;
+  visibility: 'unlisted';
+  title: string;
+  description: string;
+  primary_season: string;
+  secondary_season: string | null;
+  palette: Array<{
+    name: string;
+    hex: string;
+  }>;
+  include_photo: boolean;
+  image_url: string | null;
+  share_url: string;
+  created_at: string;
+};
+
 type ApiErrorBody = {
   error?: {
     code?: string;
@@ -110,4 +146,43 @@ export const createDemoOrder = async (email: string, items: CartItem[]): Promise
   });
 
   return readJson<OrderRecord>(response);
+};
+
+export const createSavedResult = async (
+  analysisId: string,
+  includePhoto = false
+): Promise<SavedResultRecord> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/saved-results`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      analysis_id: analysisId,
+      include_photo: includePhoto
+    })
+  });
+
+  return readJson<SavedResultRecord>(response);
+};
+
+export const createShare = async (input: {
+  analysis_id: string;
+  saved_result_id?: string;
+  include_photo?: boolean;
+}): Promise<ShareRecord> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/shares`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(input)
+  });
+
+  return readJson<ShareRecord>(response);
+};
+
+export const getShare = async (shareId: string): Promise<ShareRecord> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/shares/${encodeURIComponent(shareId)}`);
+  return readJson<ShareRecord>(response);
 };
