@@ -84,6 +84,10 @@ const ActionButtons = styled.div`
   margin-top: var(--space-6);
 `;
 
+const InlineActions = styled(ActionButtons)`
+  margin-top: var(--space-4);
+`;
+
 const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   background: ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary)' : 'var(--surface)')};
   border: 1px solid ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary)' : 'var(--border-soft)')};
@@ -168,6 +172,7 @@ const Result: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [processingStep, setProcessingStep] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   const navigate = useNavigate();
   const analysisId = searchParams.get('id') || localStorage.getItem('lastAnalysisId');
 
@@ -203,6 +208,7 @@ const Result: React.FC = () => {
       } catch (err) {
         if (isMounted) {
           setError(err instanceof Error ? err.message : 'Unable to load analysis result.');
+          setAnalysis(null);
         }
       }
     };
@@ -213,7 +219,7 @@ const Result: React.FC = () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [analysisId]);
+  }, [analysisId, retryCount]);
 
   useEffect(() => {
     if (analysis?.status && analysis.analysis_id) {
@@ -262,6 +268,12 @@ const Result: React.FC = () => {
     window.alert(`${product.name} is in your cart (${item.quantity}).`);
   };
 
+  const handleRetry = () => {
+    setError(null);
+    setAnalysis(null);
+    setRetryCount((current) => current + 1);
+  };
+
   const title = analysis?.status === 'completed' && analysis.season_result
     ? `Analysis Result: ${analysis.season_result.primary}`
     : 'Analysis Result';
@@ -278,7 +290,21 @@ const Result: React.FC = () => {
           </>
         )}
 
-        {error && <ErrorBox>{error}</ErrorBox>}
+        {error && (
+          <ErrorBox>
+            {error}
+            <InlineActions>
+              {analysisId && (
+                <ActionButton type="button" onClick={handleRetry}>
+                  Try Again
+                </ActionButton>
+              )}
+              <ActionButton type="button" $variant="primary" onClick={() => navigate('/analysis')}>
+                Start New Analysis
+              </ActionButton>
+            </InlineActions>
+          </ErrorBox>
+        )}
 
         {!error && (!analysis || analysis.status === 'processing') && (
           <StatusBox>
@@ -295,7 +321,17 @@ const Result: React.FC = () => {
         )}
 
         {analysis?.status === 'failed' && (
-          <ErrorBox>{analysis.error?.message || 'Analysis could not be completed.'}</ErrorBox>
+          <ErrorBox>
+            {analysis.error?.message || 'Analysis could not be completed.'}
+            <InlineActions>
+              <ActionButton type="button" onClick={handleRetry}>
+                Try Again
+              </ActionButton>
+              <ActionButton type="button" $variant="primary" onClick={() => navigate('/analysis')}>
+                Upload Another Photo
+              </ActionButton>
+            </InlineActions>
+          </ErrorBox>
         )}
 
         {analysis?.status === 'completed' && (

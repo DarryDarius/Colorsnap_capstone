@@ -1,188 +1,298 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import type { CartItem } from '../utils/cart';
 import { clearCartItems, getCartTotal, readCartItems } from '../utils/cart';
 import { formatLabel } from '../utils/formatters';
 
-const PaymentContainer = styled.div`
-  max-width: 1000px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+const PageShell = styled.section`
+  min-height: calc(100vh - 72px);
+  background:
+    linear-gradient(180deg, rgba(251, 238, 241, 0.72) 0%, rgba(255, 252, 250, 0) 34%),
+    var(--bg-page);
+  padding: var(--space-7) var(--space-6) var(--space-9);
 
   @media (max-width: 768px) {
-    margin: 1rem;
-    padding: 1rem;
+    padding: var(--space-6) var(--space-4) var(--space-8);
   }
+`;
+
+const Container = styled.div`
+  max-width: var(--container-lg);
+  margin: 0 auto;
+`;
+
+const HeaderBlock = styled.div`
+  margin-bottom: var(--space-6);
+  max-width: 760px;
+`;
+
+const Eyebrow = styled.p`
+  color: var(--brand-primary);
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
 `;
 
 const Title = styled.h1`
-  text-align: center;
-  color: #f96ed6;
-  margin-bottom: 2rem;
-  font-size: 2.5rem;
-
-  @media (max-width: 768px) {
-    font-size: 2rem;
-  }
+  color: var(--text-primary);
+  font-size: clamp(2.25rem, 5vw, var(--font-4xl));
+  line-height: 1.05;
+  margin-bottom: var(--space-4);
 `;
 
-const PaymentLayout = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+const Description = styled.p`
+  color: var(--text-secondary);
+  font-size: var(--font-lg);
+  line-height: 1.7;
+`;
 
-  @media (max-width: 768px) {
+const CheckoutLayout = styled.div`
+  align-items: start;
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) 380px;
+
+  @media (max-width: 980px) {
     grid-template-columns: 1fr;
   }
 `;
 
-const OrderSummary = styled.div`
-  background: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 10px;
-  height: fit-content;
-`;
+const Panel = styled.section`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-6);
 
-const SummaryTitle = styled.h3`
-  color: #f96ed6;
-  margin-bottom: 1rem;
-  font-size: 1.3rem;
-`;
-
-const CartItemRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid #eee;
-
-  &:last-child {
-    border-bottom: none;
+  @media (max-width: 640px) {
+    padding: var(--space-5);
   }
 `;
 
-const ItemImage = styled.img`
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  object-fit: cover;
+const PanelTitle = styled.h2`
+  color: var(--text-primary);
+  font-size: var(--font-xl);
+  margin-bottom: var(--space-4);
 `;
 
-const ItemDetails = styled.div`
-  flex: 1;
-`;
-
-const ItemName = styled.h4`
-  margin: 0 0 0.25rem;
-  font-size: 0.9rem;
-  color: #333;
-`;
-
-const ItemPrice = styled.p`
-  margin: 0;
-  color: #f96ed6;
-  font-weight: 600;
-  font-size: 0.9rem;
-`;
-
-const ItemMeta = styled.p`
-  margin: 0;
-  color: #777;
-  font-size: 0.8rem;
-`;
-
-const TotalSection = styled.div`
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 2px solid #eee;
-  text-align: right;
-`;
-
-const TotalAmount = styled.div`
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #f96ed6;
+const DemoNotice = styled.div`
+  background: var(--surface-sage);
+  border: 1px solid #DDE8DA;
+  border-radius: var(--radius-md);
+  color: var(--accent-olive);
+  font-weight: 700;
+  line-height: 1.6;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
 `;
 
 const PaymentForm = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  display: grid;
+  gap: var(--space-4);
 `;
 
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+const FieldGroup = styled.div`
+  display: grid;
+  gap: var(--space-2);
 `;
 
 const Label = styled.label`
-  font-weight: 600;
-  color: #333;
-  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 800;
 `;
 
 const Input = styled.input`
-  padding: 0.75rem;
-  border: 2px solid #eee;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  padding: 0.85rem 1rem;
 
   &:focus {
-    outline: none;
-    border-color: #f96ed6;
+    border-color: var(--brand-primary);
   }
 `;
 
-const CardRow = styled.div`
+const FieldRow = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
-  gap: 1rem;
+  gap: var(--space-4);
+  grid-template-columns: 1fr 1fr;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
 `;
 
 const SubmitButton = styled.button`
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #f96ed6, #eff66f);
-  color: white;
-  border: none;
-  border-radius: 50px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
+  background: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-inverse);
+  font-weight: 800;
+  margin-top: var(--space-2);
+  padding: 0.95rem 1.1rem;
 
-  &:hover {
-    background: #d9793f;
-    transform: translateY(-2px);
+  &:hover:not(:disabled) {
+    background: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
+    transform: translateY(-1px);
   }
 
   &:disabled {
-    background: #ccc;
+    background: #E4DDDA;
+    border-color: #E4DDDA;
+    color: var(--text-muted);
     cursor: not-allowed;
-    transform: none;
   }
 `;
 
-const SuccessMessage = styled.div`
-  background: #d4edda;
-  color: #155724;
-  padding: 1rem;
-  border-radius: 8px;
-  text-align: center;
-  margin-bottom: 1rem;
+const Summary = styled(Panel)`
+  position: sticky;
+  top: 96px;
+
+  @media (max-width: 980px) {
+    position: static;
+  }
 `;
+
+const SummaryList = styled.div`
+  display: grid;
+  gap: var(--space-4);
+`;
+
+const SummaryItem = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: 64px minmax(0, 1fr);
+`;
+
+const ItemImage = styled.img`
+  aspect-ratio: 1;
+  background: var(--surface-warm);
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  width: 100%;
+`;
+
+const ItemName = styled.h3`
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  line-height: 1.25;
+`;
+
+const ItemMeta = styled.p`
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  margin-top: var(--space-1);
+`;
+
+const ItemPrice = styled.p`
+  color: var(--brand-primary);
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-top: var(--space-1);
+`;
+
+const TotalLine = styled.div`
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-primary);
+  display: flex;
+  font-size: var(--font-lg);
+  font-weight: 800;
+  justify-content: space-between;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+`;
+
+const EmptyPanel = styled(Panel)`
+  text-align: center;
+`;
+
+const EmptyCopy = styled.p`
+  color: var(--text-secondary);
+  margin-bottom: var(--space-5);
+`;
+
+const ActionRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+`;
+
+const PrimaryLink = styled(Link)`
+  background: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-inverse);
+  font-weight: 800;
+  padding: 0.85rem 1rem;
+
+  &:hover {
+    background: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
+  }
+`;
+
+const SecondaryLink = styled(Link)`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 800;
+  padding: 0.85rem 1rem;
+
+  &:hover {
+    background: var(--brand-primary-pale);
+    border-color: var(--brand-primary-soft);
+  }
+`;
+
+const ConfirmationPanel = styled(Panel)`
+  text-align: center;
+`;
+
+const ConfirmationGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-5) auto;
+  max-width: 680px;
+  text-align: left;
+`;
+
+const ConfirmationItem = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+`;
+
+const formatCardNumber = (value: string) => {
+  return value
+    .replace(/\D/g, '')
+    .slice(0, 16)
+    .replace(/(\d{4})(?=\d)/g, '$1 ');
+};
+
+const formatExpiry = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) {
+    return digits;
+  }
+
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+};
 
 const Payment: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [confirmedItems, setConfirmedItems] = useState<CartItem[]>([]);
+  const [confirmedTotal, setConfirmedTotal] = useState(0);
   const [formData, setFormData] = useState({
     cardNumber: '',
     cardName: '',
@@ -197,163 +307,210 @@ const Payment: React.FC = () => {
     setCartItems(readCartItems());
   }, []);
 
-  const calculateTotal = () => {
-    return getCartTotal(cartItems);
-  };
+  const total = getCartTotal(cartItems);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    const nextValue = name === 'cardNumber'
+      ? formatCardNumber(value)
+      : name === 'expiry'
+        ? formatExpiry(value)
+        : name === 'cvv'
+          ? value.replace(/\D/g, '').slice(0, 4)
+          : value;
+
+    setFormData((current) => ({
+      ...current,
+      [name]: nextValue
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     setIsProcessing(true);
-    
-    // Simulate payment processing
-    setTimeout(() => {
+
+    window.setTimeout(() => {
+      setConfirmedItems(cartItems);
+      setConfirmedTotal(total);
       setIsProcessing(false);
       setIsSuccess(true);
-      
-      // Clear cart after successful payment
       clearCartItems();
       setCartItems([]);
-      
-      // Reset form
-      setTimeout(() => {
-        setFormData({
-          cardNumber: '',
-          cardName: '',
-          expiry: '',
-          cvv: '',
-          email: ''
-        });
-        setIsSuccess(false);
-      }, 5000);
-    }, 2000);
+      setFormData({
+        cardNumber: '',
+        cardName: '',
+        expiry: '',
+        cvv: '',
+        email: ''
+      });
+    }, 1200);
   };
+
+  if (isSuccess) {
+    return (
+      <PageShell>
+        <Container>
+          <ConfirmationPanel>
+            <Eyebrow>Demo order confirmed</Eyebrow>
+            <Title>Checkout complete</Title>
+            <Description>
+              This demo checkout was processed locally for the capstone flow. No real payment was charged.
+            </Description>
+            <ConfirmationGrid>
+              {confirmedItems.map((item) => (
+                <ConfirmationItem key={item.id}>
+                  <span>{item.name} x {item.quantity}</span>
+                  <strong>${(parseFloat(item.price) * item.quantity).toFixed(2)}</strong>
+                </ConfirmationItem>
+              ))}
+              <ConfirmationItem>
+                <span>Total</span>
+                <strong>${confirmedTotal.toFixed(2)}</strong>
+              </ConfirmationItem>
+            </ConfirmationGrid>
+            <ActionRow>
+              <PrimaryLink to="/analysis">Start Another Analysis</PrimaryLink>
+              <SecondaryLink to="/">Back Home</SecondaryLink>
+            </ActionRow>
+          </ConfirmationPanel>
+        </Container>
+      </PageShell>
+    );
+  }
 
   if (cartItems.length === 0) {
     return (
-      <PaymentContainer>
-        <Title>Payment</Title>
-        <p>Your cart is empty. Please add items to your cart before proceeding to payment.</p>
-      </PaymentContainer>
+      <PageShell>
+        <Container>
+          <EmptyPanel>
+            <Eyebrow>Demo checkout</Eyebrow>
+            <Title>Your cart is empty</Title>
+            <EmptyCopy>Add personalized products before continuing to checkout.</EmptyCopy>
+            <ActionRow>
+              <PrimaryLink to="/analysis">Start Analysis</PrimaryLink>
+              <SecondaryLink to="/shopping-cart">Back to Cart</SecondaryLink>
+            </ActionRow>
+          </EmptyPanel>
+        </Container>
+      </PageShell>
     );
   }
 
   return (
-    <PaymentContainer>
-      <Title>Payment</Title>
-      
-      {isSuccess && (
-        <SuccessMessage>
-          Payment successful! Thank you for your purchase. You will receive a confirmation email shortly.
-        </SuccessMessage>
-      )}
+    <PageShell>
+      <Container>
+        <HeaderBlock>
+          <Eyebrow>Demo checkout</Eyebrow>
+          <Title>Payment</Title>
+          <Description>
+            Complete the capstone checkout flow while keeping real purchases available through retailer links.
+          </Description>
+        </HeaderBlock>
 
-      <PaymentLayout>
-        <PaymentForm onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label htmlFor="email">Email Address *</Label>
-            <Input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
-          </FormGroup>
+        <CheckoutLayout>
+          <Panel>
+            <PanelTitle>Contact and payment</PanelTitle>
+            <DemoNotice>
+              Demo checkout - no real payment will be processed. Use any valid-looking test values to complete the flow.
+            </DemoNotice>
+            <PaymentForm onSubmit={handleSubmit}>
+              <FieldGroup>
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="cardName">Cardholder Name</Label>
+                <Input
+                  type="text"
+                  id="cardName"
+                  name="cardName"
+                  value={formData.cardName}
+                  onChange={handleInputChange}
+                  required
+                />
+              </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="cardNumber">Card Number</Label>
+                <Input
+                  type="text"
+                  id="cardNumber"
+                  name="cardNumber"
+                  inputMode="numeric"
+                  value={formData.cardNumber}
+                  onChange={handleInputChange}
+                  placeholder="4242 4242 4242 4242"
+                  required
+                />
+              </FieldGroup>
+              <FieldRow>
+                <FieldGroup>
+                  <Label htmlFor="expiry">Expiry Date</Label>
+                  <Input
+                    type="text"
+                    id="expiry"
+                    name="expiry"
+                    inputMode="numeric"
+                    value={formData.expiry}
+                    onChange={handleInputChange}
+                    placeholder="MM/YY"
+                    required
+                  />
+                </FieldGroup>
+                <FieldGroup>
+                  <Label htmlFor="cvv">CVV</Label>
+                  <Input
+                    type="text"
+                    id="cvv"
+                    name="cvv"
+                    inputMode="numeric"
+                    value={formData.cvv}
+                    onChange={handleInputChange}
+                    placeholder="123"
+                    required
+                  />
+                </FieldGroup>
+              </FieldRow>
+              <SubmitButton type="submit" disabled={isProcessing}>
+                {isProcessing ? 'Processing Demo Checkout...' : `Pay $${total.toFixed(2)}`}
+              </SubmitButton>
+            </PaymentForm>
+          </Panel>
 
-          <FormGroup>
-            <Label htmlFor="cardName">Cardholder Name *</Label>
-            <Input
-              type="text"
-              id="cardName"
-              name="cardName"
-              value={formData.cardName}
-              onChange={handleInputChange}
-              required
-            />
-          </FormGroup>
-
-          <FormGroup>
-            <Label htmlFor="cardNumber">Card Number *</Label>
-            <Input
-              type="text"
-              id="cardNumber"
-              name="cardNumber"
-              value={formData.cardNumber}
-              onChange={handleInputChange}
-              placeholder="1234 5678 9012 3456"
-              maxLength={19}
-              required
-            />
-          </FormGroup>
-
-          <CardRow>
-            <FormGroup>
-              <Label htmlFor="expiry">Expiry Date *</Label>
-              <Input
-                type="text"
-                id="expiry"
-                name="expiry"
-                value={formData.expiry}
-                onChange={handleInputChange}
-                placeholder="MM/YY"
-                maxLength={5}
-                required
-              />
-            </FormGroup>
-
-            <FormGroup>
-              <Label htmlFor="cvv">CVV *</Label>
-              <Input
-                type="text"
-                id="cvv"
-                name="cvv"
-                value={formData.cvv}
-                onChange={handleInputChange}
-                placeholder="123"
-                maxLength={4}
-                required
-              />
-            </FormGroup>
-          </CardRow>
-
-          <SubmitButton type="submit" disabled={isProcessing}>
-            {isProcessing ? 'Processing Payment...' : `Pay $${calculateTotal().toFixed(2)}`}
-          </SubmitButton>
-        </PaymentForm>
-
-        <OrderSummary>
-          <SummaryTitle>Order Summary</SummaryTitle>
-          {cartItems.map((item, index) => (
-            <CartItemRow key={item.id || index}>
-              <ItemImage src={item.image} alt={item.name} />
-              <ItemDetails>
-                <ItemName>{item.name}</ItemName>
-                <ItemMeta>
-                  {[item.category ? formatLabel(item.category) : null, item.shade]
-                    .filter(Boolean)
-                    .join(' • ')}
-                </ItemMeta>
-                <ItemPrice>
-                  {item.quantity} x ${parseFloat(item.price).toFixed(2)}
-                </ItemPrice>
-              </ItemDetails>
-            </CartItemRow>
-          ))}
-          <TotalSection>
-            <TotalAmount>Total: ${calculateTotal().toFixed(2)}</TotalAmount>
-          </TotalSection>
-        </OrderSummary>
-      </PaymentLayout>
-    </PaymentContainer>
+          <Summary>
+            <PanelTitle>Order Summary</PanelTitle>
+            <SummaryList>
+              {cartItems.map((item) => (
+                <SummaryItem key={item.id}>
+                  <ItemImage src={item.image} alt={item.name} />
+                  <div>
+                    <ItemName>{item.name}</ItemName>
+                    <ItemMeta>
+                      {[item.category ? formatLabel(item.category) : null, item.shade]
+                        .filter(Boolean)
+                        .join(' | ')}
+                    </ItemMeta>
+                    <ItemPrice>
+                      {item.quantity} x ${parseFloat(item.price).toFixed(2)}
+                    </ItemPrice>
+                  </div>
+                </SummaryItem>
+              ))}
+            </SummaryList>
+            <TotalLine>
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </TotalLine>
+          </Summary>
+        </CheckoutLayout>
+      </Container>
+    </PageShell>
   );
 };
 

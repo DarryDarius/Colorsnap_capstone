@@ -104,6 +104,17 @@ const PanelBadge = styled.span`
   padding: var(--space-2) var(--space-3);
 `;
 
+const ServiceNotice = styled.div<{ $tone?: 'success' | 'warning' }>`
+  background: ${(props) => (props.$tone === 'warning' ? '#FFF8EC' : 'var(--surface-sage)')};
+  border: 1px solid ${(props) => (props.$tone === 'warning' ? '#E8D5B8' : '#DDE8DA')};
+  border-radius: var(--radius-md);
+  color: ${(props) => (props.$tone === 'warning' ? 'var(--warning)' : 'var(--accent-olive)')};
+  font-weight: 600;
+  line-height: 1.6;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+`;
+
 const FileInput = styled.input`
   display: none;
 `;
@@ -343,7 +354,7 @@ const StepDot = styled.span`
   width: 7px;
 `;
 
-type AiMode = 'mock' | 'openai' | 'unknown';
+type AiMode = 'mock' | 'openai' | 'offline' | 'unknown';
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
@@ -376,7 +387,7 @@ const Analysis: React.FC = () => {
       })
       .catch(() => {
         if (isMounted) {
-          setAiMode('unknown');
+          setAiMode('offline');
         }
       });
 
@@ -389,9 +400,19 @@ const Analysis: React.FC = () => {
     ? 'Live OpenAI analysis'
     : aiMode === 'mock'
       ? 'Demo analysis mode'
-      : 'Analysis service';
+      : aiMode === 'offline'
+        ? 'Service offline'
+        : 'Checking service';
 
-  const pipelineTitle = aiMode === 'openai' ? 'Live AI flow' : aiMode === 'mock' ? 'Demo AI flow' : 'Analysis flow';
+  const pipelineTitle = aiMode === 'openai'
+    ? 'Live AI flow'
+    : aiMode === 'mock'
+      ? 'Demo AI flow'
+      : aiMode === 'offline'
+        ? 'Offline flow'
+        : 'Analysis flow';
+
+  const isServiceOffline = aiMode === 'offline';
 
   const setFile = (file: File) => {
     if (!allowedTypes.has(file.type)) {
@@ -425,6 +446,10 @@ const Analysis: React.FC = () => {
 
   const handleAnalyze = async () => {
     if (!selectedFile) return;
+    if (isServiceOffline) {
+      setError('Analysis service is offline. Start the backend with npm.cmd run backend:dev and try again.');
+      return;
+    }
 
     setIsAnalyzing(true);
     setError(null);
@@ -473,6 +498,18 @@ const Analysis: React.FC = () => {
             </div>
             <PanelBadge>{modeLabel}</PanelBadge>
           </PanelHeader>
+
+          {aiMode === 'offline' && (
+            <ServiceNotice $tone="warning">
+              Analysis service is offline. Start the backend with npm.cmd run backend:dev before starting a new analysis.
+            </ServiceNotice>
+          )}
+
+          {aiMode === 'mock' && (
+            <ServiceNotice>
+              Demo mode is active. Results are deterministic so the local capstone flow stays stable.
+            </ServiceNotice>
+          )}
 
           <FileInput
             ref={fileInputRef}
@@ -533,7 +570,7 @@ const Analysis: React.FC = () => {
           <AnalyzeActions>
             <Button
               type="button"
-              disabled={!selectedFile || isAnalyzing}
+              disabled={!selectedFile || isAnalyzing || isServiceOffline}
               onClick={handleAnalyze}
             >
               {isAnalyzing ? 'Starting Analysis...' : 'Start Analysis'}

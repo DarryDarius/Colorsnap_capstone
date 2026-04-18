@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import type { ProductRecommendation } from '../../types/analysis';
@@ -31,10 +31,68 @@ const FilterButton = styled.button<{ $active: boolean }>`
   }
 `;
 
+const RecommendationIntro = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+  text-align: left;
+
+  strong {
+    color: var(--text-primary);
+  }
+`;
+
+const ControlsGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: var(--space-6);
+
+  @media (max-width: 820px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ControlGroup = styled.label`
+  color: var(--text-primary);
+  display: grid;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  gap: var(--space-2);
+  text-align: left;
+`;
+
+const Select = styled.select`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font: inherit;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+
+  &:focus {
+    border-color: var(--brand-primary);
+  }
+`;
+
 const ProductsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--space-4);
+`;
+
+const EmptyState = styled.div`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  padding: var(--space-6);
+  text-align: center;
 `;
 
 const ProductCard = styled.div`
@@ -176,6 +234,45 @@ type Props = {
   analysisId?: string | null;
 };
 
+type PriceFilter = 'all' | 'under-10' | '10-25' | '25-plus';
+type SortMode = 'best-match' | 'price-low' | 'price-high';
+
+const getRetailerName = (purchaseUrl?: string) => {
+  if (!purchaseUrl) {
+    return 'Other';
+  }
+
+  try {
+    const host = new URL(purchaseUrl).hostname.toLowerCase();
+
+    if (host.includes('sephora')) return 'Sephora';
+    if (host.includes('ulta')) return 'Ulta Beauty';
+    if (host.includes('amazon')) return 'Amazon';
+
+    return host.replace(/^www\./, '');
+  } catch {
+    return 'Other';
+  }
+};
+
+const matchesPriceFilter = (product: ProductRecommendation, priceFilter: PriceFilter) => {
+  const price = parseFloat(product.price);
+
+  if (!Number.isFinite(price) || priceFilter === 'all') {
+    return true;
+  }
+
+  if (priceFilter === 'under-10') {
+    return price < 10;
+  }
+
+  if (priceFilter === '10-25') {
+    return price >= 10 && price <= 25;
+  }
+
+  return price > 25;
+};
+
 const ProductRecommendations: React.FC<Props> = ({
   products = [],
   activeFilter,
@@ -183,13 +280,40 @@ const ProductRecommendations: React.FC<Props> = ({
   onAddToCart,
   analysisId
 }) => {
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
+  const [retailerFilter, setRetailerFilter] = useState('all');
+  const [sortMode, setSortMode] = useState<SortMode>('best-match');
   const categories = Array.from(new Set(products.map((product) => product.category)));
-  const filteredProducts = activeFilter === 'all'
-    ? products
-    : products.filter((product) => product.category === activeFilter);
+  const retailers = useMemo(
+    () => Array.from(new Set(products.map((product) => getRetailerName(product.purchase_url)))).sort(),
+    [products]
+  );
+  const filteredProducts = useMemo(() => {
+    const nextProducts = products
+      .filter((product) => activeFilter === 'all' || product.category === activeFilter)
+      .filter((product) => matchesPriceFilter(product, priceFilter))
+      .filter((product) => retailerFilter === 'all' || getRetailerName(product.purchase_url) === retailerFilter);
+
+    return [...nextProducts].sort((first, second) => {
+      if (sortMode === 'price-low') {
+        return parseFloat(first.price) - parseFloat(second.price);
+      }
+
+      if (sortMode === 'price-high') {
+        return parseFloat(second.price) - parseFloat(first.price);
+      }
+
+      return second.score - first.score;
+    });
+  }, [activeFilter, priceFilter, products, retailerFilter, sortMode]);
 
   return (
     <>
+      <RecommendationIntro>
+        <strong>Best Match</strong> ranks products by palette match, undertone fit, saturation, brightness,
+        and contrast support. Use filters to narrow the list by category, price, or retailer.
+      </RecommendationIntro>
+
       <FilterBar>
         <FilterButton $active={activeFilter === 'all'} onClick={() => onFilterChange('all')}>
           All
@@ -205,6 +329,41 @@ const ProductRecommendations: React.FC<Props> = ({
         ))}
       </FilterBar>
 
+      <ControlsGrid>
+        <ControlGroup>
+          Price range
+          <Select value={priceFilter} onChange={(event) => setPriceFilter(event.target.value as PriceFilter)}>
+            <option value="all">All prices</option>
+            <option value="under-10">Under $10</option>
+            <option value="10-25">$10-$25</option>
+            <option value="25-plus">$25+</option>
+          </Select>
+        </ControlGroup>
+        <ControlGroup>
+          Retailer
+          <Select value={retailerFilter} onChange={(event) => setRetailerFilter(event.target.value)}>
+            <option value="all">All retailers</option>
+            {retailers.map((retailer) => (
+              <option key={retailer} value={retailer}>{retailer}</option>
+            ))}
+          </Select>
+        </ControlGroup>
+        <ControlGroup>
+          Sort
+          <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
+            <option value="best-match">Best Match</option>
+            <option value="price-low">Price Low to High</option>
+            <option value="price-high">Price High to Low</option>
+          </Select>
+        </ControlGroup>
+      </ControlsGrid>
+
+      {filteredProducts.length === 0 && (
+        <EmptyState>
+          No products match these filters. Try broadening the category, price, or retailer selection.
+        </EmptyState>
+      )}
+
       <ProductsGrid>
         {filteredProducts.map((product) => (
           <ProductCard key={product.id}>
@@ -218,6 +377,7 @@ const ProductRecommendations: React.FC<Props> = ({
             </BadgeRow>
             <ProductInfo><strong>Shade:</strong> {product.shade}</ProductInfo>
             <ProductInfo><strong>Category:</strong> {formatLabel(product.category)}</ProductInfo>
+            <ProductInfo><strong>Retailer:</strong> {getRetailerName(product.purchase_url)}</ProductInfo>
             <ProductInfo><strong>Match Score:</strong> {product.score}</ProductInfo>
             <ProductInfo><strong>Price:</strong> ${product.price}</ProductInfo>
             <ProductInfo>{product.short_description || `${product.shade} selected for your palette.`}</ProductInfo>
