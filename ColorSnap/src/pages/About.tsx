@@ -1,113 +1,198 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
-const AboutContainer = styled.div`
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+const PageShell = styled.section`
+  min-height: calc(100vh - 72px);
+  background:
+    linear-gradient(180deg, rgba(251, 238, 241, 0.72) 0%, rgba(255, 252, 250, 0) 34%),
+    var(--bg-page);
+  padding: var(--space-7) var(--space-6) var(--space-9);
 
   @media (max-width: 768px) {
-    margin: 1rem;
-    padding: 1rem;
+    padding: var(--space-6) var(--space-4) var(--space-8);
   }
+`;
+
+const Container = styled.div`
+  max-width: var(--container-lg);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-6);
+`;
+
+const Hero = styled.section`
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) 380px;
+  align-items: center;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const Eyebrow = styled.p`
+  color: var(--brand-primary);
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
 `;
 
 const Title = styled.h1`
-  text-align: center;
-  color: #f96ed6;
-  margin-bottom: 2rem;
-  font-size: 2.5rem;
+  color: var(--text-primary);
+  font-size: clamp(2.4rem, 6vw, var(--font-4xl));
+  line-height: 1.05;
+  margin-bottom: var(--space-4);
+`;
 
-  @media (max-width: 768px) {
-    font-size: 2rem;
+const Description = styled.p`
+  color: var(--text-secondary);
+  font-size: var(--font-lg);
+  line-height: 1.75;
+`;
+
+const HeroImage = styled.img`
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-medium);
+  object-fit: cover;
+  width: 100%;
+`;
+
+const ContentGrid = styled.div`
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 820px) {
+    grid-template-columns: 1fr;
   }
 `;
 
-const Content = styled.div`
-  line-height: 1.8;
-  color: #333;
-  font-size: 1.1rem;
+const ContentCard = styled.article`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-5);
+`;
 
-  h2 {
-    color: #f96ed6;
-    margin: 2rem 0 1rem;
-    font-size: 1.8rem;
-  }
+const CardTitle = styled.h2`
+  color: var(--text-primary);
+  font-size: var(--font-xl);
+  margin-bottom: var(--space-3);
+`;
 
-  p {
-    margin-bottom: 1.5rem;
-  }
+const CardCopy = styled.p`
+  color: var(--text-secondary);
+  line-height: 1.75;
+`;
 
-  ul {
-    margin: 1rem 0;
-    padding-left: 2rem;
-  }
+const List = styled.ul`
+  color: var(--text-secondary);
+  line-height: 1.75;
+  margin: 0;
+  padding-left: 1.25rem;
+`;
 
-  li {
-    margin-bottom: 0.5rem;
+const CtaPanel = styled.section`
+  background: var(--text-primary);
+  border-radius: var(--radius-lg);
+  color: var(--text-inverse);
+  padding: var(--space-6);
+`;
+
+const CtaTitle = styled.h2`
+  font-size: var(--font-3xl);
+  line-height: 1.1;
+  margin-bottom: var(--space-3);
+`;
+
+const CtaCopy = styled.p`
+  color: rgba(255, 255, 255, 0.74);
+  line-height: 1.7;
+  margin-bottom: var(--space-5);
+  max-width: 720px;
+`;
+
+const CtaLink = styled(Link)`
+  background: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-inverse);
+  display: inline-flex;
+  font-weight: 800;
+  padding: 0.85rem 1rem;
+
+  &:hover {
+    background: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
   }
 `;
 
 const About: React.FC = () => {
   return (
-    <AboutContainer>
-      <Title>About ColorSnap</Title>
-      <Content>
-        <h2>Our Mission</h2>
-        <p>
-          At ColorSnap, we believe that everyone deserves to feel confident and beautiful in their own skin. 
-          Our mission is to democratize personal color analysis by combining cutting-edge AI technology 
-          with expert human insight to help you discover your perfect color palette.
-        </p>
+    <PageShell>
+      <Container>
+        <Hero>
+          <div>
+            <Eyebrow>About ColorSnap</Eyebrow>
+            <Title>AI color analysis with a practical beauty and style path.</Title>
+            <Description>
+              ColorSnap combines image-based color analysis, product recommendation logic, and expert consultation
+              workflows so users can move from palette insight to confident everyday decisions.
+            </Description>
+          </div>
+          <HeroImage src="/images/hero-bg-custom.jpg" alt="ColorSnap palette and beauty styling preview" />
+        </Hero>
 
-        <h2>What We Do</h2>
-        <p>
-          ColorSnap uses advanced artificial intelligence algorithms to analyze your skin tone, 
-          facial features, and natural coloring to determine your optimal color palette. 
-          Our AI technology examines multiple factors including:
-        </p>
-        <ul>
-          <li>Skin undertones (warm, cool, or neutral)</li>
-          <li>Eye color and contrast</li>
-          <li>Hair color and texture</li>
-          <li>Natural lip and cheek tones</li>
-          <li>Overall color harmony</li>
-        </ul>
+        <ContentGrid>
+          <ContentCard>
+            <CardTitle>Our Mission</CardTitle>
+            <CardCopy>
+              We help people understand which colors support their natural features, then translate that insight into
+              makeup, wardrobe, and shopping decisions that feel clear and usable.
+            </CardCopy>
+          </ContentCard>
 
-        <h2>Our Expert Team</h2>
-        <p>
-          While our AI provides the foundation, our team of certified color consultants 
-          brings years of experience in personal color analysis and styling. They work 
-          alongside our technology to provide personalized recommendations and one-on-one 
-          consultations to help you make the most of your color palette.
-        </p>
+          <ContentCard>
+            <CardTitle>What We Analyze</CardTitle>
+            <List>
+              <li>Undertone direction: warm, cool, or neutral.</li>
+              <li>Brightness, saturation, and contrast level.</li>
+              <li>Seasonal color direction and palette harmony.</li>
+              <li>Beauty and fashion recommendations tied to the report.</li>
+            </List>
+          </ContentCard>
 
-        <h2>Privacy & Security</h2>
-        <p>
-          We take your privacy seriously. Your photos are used solely for color analysis 
-          and are not stored permanently or shared with third parties. Our AI processes 
-          images securely and does not retain personal data beyond what's necessary for 
-          your color analysis.
-        </p>
+          <ContentCard>
+            <CardTitle>Expert Support</CardTitle>
+            <CardCopy>
+              AI gives users a fast starting point. Consultant booking adds a human layer for users who want validation,
+              wardrobe planning, or help turning recommendations into a personal style system.
+            </CardCopy>
+          </ContentCard>
 
-        <h2>Our Commitment</h2>
-        <p>
-          We're committed to inclusivity and believe that beauty comes in all colors, 
-          shapes, and sizes. Our technology is designed to work for people of all 
-          ethnicities and skin tones, helping everyone discover their unique beauty.
-        </p>
+          <ContentCard>
+            <CardTitle>Privacy and Demo Scope</CardTitle>
+            <CardCopy>
+              The current local version stores the uploaded preview in the browser and supports mock AI mode for stable
+              capstone demos. A production release would add persistent consent, storage, and account controls.
+            </CardCopy>
+          </ContentCard>
+        </ContentGrid>
 
-        <h2>Get Started</h2>
-        <p>
-          Ready to discover your perfect colors? Upload a photo and let our AI analyze 
-          your unique features, then explore personalized product recommendations and 
-          book a consultation with one of our expert color consultants.
-        </p>
-      </Content>
-    </AboutContainer>
+        <CtaPanel>
+          <CtaTitle>Ready to see the full flow?</CtaTitle>
+          <CtaCopy>
+            Start with one photo, review your color report, browse product matches, and book expert guidance when needed.
+          </CtaCopy>
+          <CtaLink to="/analysis">Start Analysis</CtaLink>
+        </CtaPanel>
+      </Container>
+    </PageShell>
   );
 };
 

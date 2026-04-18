@@ -1,34 +1,59 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 
-const FAQContainer = styled.div`
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 2rem;
-  background: #fff;
-  border-radius: 15px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+const PageShell = styled.section`
+  min-height: calc(100vh - 72px);
+  background:
+    linear-gradient(180deg, rgba(251, 238, 241, 0.72) 0%, rgba(255, 252, 250, 0) 34%),
+    var(--bg-page);
+  padding: var(--space-7) var(--space-6) var(--space-9);
 
   @media (max-width: 768px) {
-    margin: 1rem;
-    padding: 1rem;
+    padding: var(--space-6) var(--space-4) var(--space-8);
   }
+`;
+
+const Container = styled.div`
+  max-width: var(--container-md);
+  margin: 0 auto;
+`;
+
+const HeaderBlock = styled.div`
+  margin-bottom: var(--space-6);
+  max-width: 760px;
+`;
+
+const Eyebrow = styled.p`
+  color: var(--brand-primary);
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-bottom: var(--space-3);
+  text-transform: uppercase;
 `;
 
 const Title = styled.h1`
-  text-align: center;
-  color: #f96ed6;
-  margin-bottom: 2rem;
-  font-size: 2.5rem;
+  color: var(--text-primary);
+  font-size: clamp(2.25rem, 5vw, var(--font-4xl));
+  line-height: 1.05;
+  margin-bottom: var(--space-4);
+`;
 
-  @media (max-width: 768px) {
-    font-size: 2rem;
-  }
+const Description = styled.p`
+  color: var(--text-secondary);
+  font-size: var(--font-lg);
+  line-height: 1.7;
+`;
+
+const FAQList = styled.div`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
 `;
 
 const FAQItem = styled.div`
-  border-bottom: 1px solid #eee;
-  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-soft);
 
   &:last-child {
     border-bottom: none;
@@ -36,39 +61,45 @@ const FAQItem = styled.div`
 `;
 
 const Question = styled.button<{ $isOpen: boolean }>`
-  width: 100%;
-  text-align: left;
-  padding: 1.5rem;
-  background: none;
-  border: none;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #333;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  transition: all 0.3s ease;
+  background: ${(props) => (props.$isOpen ? 'var(--surface-warm)' : 'var(--surface)')};
+  color: var(--text-primary);
+  display: flex;
+  font-size: var(--font-md);
+  font-weight: 800;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding: var(--space-5);
+  text-align: left;
+  width: 100%;
 
   &:hover {
-    background: #f8f9fa;
-  }
-
-  span {
-    color: #f96ed6;
-    font-size: 1.5rem;
-    transition: transform 0.3s ease;
-    transform: ${props => props.$isOpen ? 'rotate(45deg)' : 'rotate(0deg)'};
+    background: var(--brand-primary-pale);
   }
 `;
 
+const Indicator = styled.span<{ $isOpen: boolean }>`
+  align-items: center;
+  background: var(--brand-primary-pale);
+  border-radius: var(--radius-sm);
+  color: var(--brand-primary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  transform: ${(props) => (props.$isOpen ? 'rotate(45deg)' : 'rotate(0deg)')};
+  transition: transform 160ms ease;
+  width: 28px;
+`;
+
 const Answer = styled.div<{ $isOpen: boolean }>`
-  padding: ${props => props.$isOpen ? '0 1.5rem 1.5rem' : '0 1.5rem'};
-  max-height: ${props => props.$isOpen ? '500px' : '0'};
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-height: ${(props) => (props.$isOpen ? '360px' : '0')};
   overflow: hidden;
-  transition: all 0.3s ease;
-  color: #666;
-  line-height: 1.6;
+  padding: ${(props) => (props.$isOpen ? '0 var(--space-5) var(--space-5)' : '0 var(--space-5)')};
+  transition: max-height 180ms ease, padding 180ms ease;
 `;
 
 interface FAQData {
@@ -78,77 +109,83 @@ interface FAQData {
 
 const faqData: FAQData[] = [
   {
-    question: "How accurate is the AI color analysis?",
-    answer: "Our AI technology has been trained on thousands of color analysis cases and achieves over 90% accuracy. However, we recommend booking a consultation with our expert color consultants for the most personalized and detailed analysis."
+    question: 'How accurate is the AI color analysis?',
+    answer: 'The current system supports a stable mock mode and an OpenAI-powered live mode. For a production product, results should be positioned as guidance and paired with expert review for high-confidence decisions.'
   },
   {
-    question: "What type of photo should I upload?",
-    answer: "For best results, upload a clear frontal selfie taken in natural daylight. Avoid heavy makeup, filters, or artificial lighting. Your face should be unobstructed and show your natural hair and eye colors."
+    question: 'What type of photo should I upload?',
+    answer: 'Use a clear front-facing selfie in natural light. Avoid heavy filters, sunglasses, strong colored lighting, or makeup that changes your natural undertone.'
   },
   {
-    question: "How long does the analysis take?",
-    answer: "The AI analysis typically takes 2-3 seconds to process your photo and generate your personalized color palette. The entire process from upload to results usually takes less than a minute."
+    question: 'How long does the analysis take?',
+    answer: 'Mock mode usually returns in a few seconds. Live AI mode depends on image size, network speed, and OpenAI response time.'
   },
   {
-    question: "What if I don't agree with my color analysis results?",
-    answer: "We understand that color analysis can be subjective. You can upload multiple photos for analysis, or book a consultation with our expert color consultants who can provide more detailed and personalized guidance."
+    question: 'What happens if the backend is offline?',
+    answer: 'The upload page now shows a clear service offline state and tells you to start the backend with npm.cmd run backend:dev before running a new analysis.'
   },
   {
-    question: "Is my photo stored permanently?",
-    answer: "No, your photos are used solely for analysis and are not stored permanently. We process images securely and do not retain personal data beyond what's necessary for your color analysis."
+    question: 'Are purchases completed inside ColorSnap?',
+    answer: 'ColorSnap acts as a recommendation and cart-building experience. Product purchases are completed through external retailers such as Sephora, Ulta Beauty, or Amazon.'
   },
   {
-    question: "How much does a consultation cost?",
-    answer: "Consultation prices vary by expert and session length. Most consultations range from $50-$150 for a 30-60 minute session. You can view specific pricing when booking with individual consultants."
+    question: 'Is checkout real?',
+    answer: 'No. Checkout is a demo flow for the capstone presentation and does not process real payments.'
   },
   {
-    question: "Can I get a refund if I'm not satisfied?",
-    answer: "We offer a satisfaction guarantee for all consultations. If you're not satisfied with your session, we'll work with you to address your concerns or provide a refund within 7 days of your consultation."
+    question: 'Is my photo stored permanently?',
+    answer: 'In the current local version, the preview is stored in browser local storage for the session flow. A production version would need explicit consent, storage policies, and account controls.'
   },
   {
-    question: "Do you ship products internationally?",
-    answer: "Currently, we focus on color analysis and consultation services. The product recommendations we provide are suggestions for items you can purchase from your preferred retailers."
-  },
-  {
-    question: "How often should I get a color analysis?",
-    answer: "Your basic color palette remains relatively stable throughout your life, but factors like hair color changes, aging, or seasonal variations might affect your optimal colors. We recommend a new analysis every 2-3 years or after significant appearance changes."
-  },
-  {
-    question: "Can the analysis work for all skin tones?",
-    answer: "Yes! Our AI technology is designed to work for people of all ethnicities and skin tones. We're committed to inclusivity and believe that beauty comes in all colors."
+    question: 'Can I book a real consultation?',
+    answer: 'The booking page is currently a demo request flow. A production version could connect it to a backend booking API, email confirmation, and calendar availability.'
   }
 ];
 
 const FAQ: React.FC = () => {
-  const [openItems, setOpenItems] = useState<number[]>([]);
+  const [openItems, setOpenItems] = useState<number[]>([0]);
 
   const toggleItem = (index: number) => {
-    setOpenItems(prev => 
-      prev.includes(index) 
-        ? prev.filter(item => item !== index)
-        : [...prev, index]
-    );
+    setOpenItems((current) => (
+      current.includes(index)
+        ? current.filter((item) => item !== index)
+        : [...current, index]
+    ));
   };
 
   return (
-    <FAQContainer>
-      <Title>Frequently Asked Questions</Title>
-      
-      {faqData.map((item, index) => (
-        <FAQItem key={index}>
-          <Question 
-            $isOpen={openItems.includes(index)}
-            onClick={() => toggleItem(index)}
-          >
-            {item.question}
-            <span>+</span>
-          </Question>
-          <Answer $isOpen={openItems.includes(index)}>
-            {item.answer}
-          </Answer>
-        </FAQItem>
-      ))}
-    </FAQContainer>
+    <PageShell>
+      <Container>
+        <HeaderBlock>
+          <Eyebrow>FAQ</Eyebrow>
+          <Title>Frequently Asked Questions</Title>
+          <Description>
+            Clear answers for the analysis flow, external shopping model, demo checkout, and capstone presentation scope.
+          </Description>
+        </HeaderBlock>
+
+        <FAQList>
+          {faqData.map((item, index) => {
+            const isOpen = openItems.includes(index);
+
+            return (
+              <FAQItem key={item.question}>
+                <Question
+                  type="button"
+                  $isOpen={isOpen}
+                  onClick={() => toggleItem(index)}
+                  aria-expanded={isOpen}
+                >
+                  {item.question}
+                  <Indicator $isOpen={isOpen}>+</Indicator>
+                </Question>
+                <Answer $isOpen={isOpen}>{item.answer}</Answer>
+              </FAQItem>
+            );
+          })}
+        </FAQList>
+      </Container>
+    </PageShell>
   );
 };
 
