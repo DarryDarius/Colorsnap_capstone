@@ -30,6 +30,19 @@ export type ImageQuality = {
   retry_advice: string | null;
 };
 
+export type ImageQualityAssessment = {
+  analysis_allowed: boolean;
+  quality_score: number;
+  face_count: number;
+  face_visibility: 'clear' | 'partial' | 'poor';
+  lighting: 'natural_even' | 'warm_indoor' | 'cool_indoor' | 'backlit' | 'mixed' | 'poor';
+  white_balance_risk: 'low' | 'medium' | 'high';
+  filter_or_heavy_editing_risk: 'low' | 'medium' | 'high';
+  makeup_risk: 'none' | 'light' | 'heavy' | 'unknown';
+  retry_required_reasons: string[];
+  user_guidance: string;
+};
+
 export type SeasonResult = {
   primary: Season;
   secondary: Season | null;
@@ -53,6 +66,53 @@ export type RecommendationItem = {
   shade?: string;
   tip?: string;
   reason?: string;
+};
+
+export type SeasonCandidate = {
+  season: Season;
+  score: number;
+  evidence_for: string[];
+  evidence_against: string[];
+};
+
+export type ColorAnalysisEvidence = {
+  observable_traits: {
+    undertone_evidence: string[];
+    contrast_evidence: string[];
+    brightness_evidence: string[];
+    saturation_evidence: string[];
+  };
+  uncertainty_factors: string[];
+  top_season_candidates: SeasonCandidate[];
+  confidence_reason: string;
+};
+
+export type AnalysisCriticIssue = {
+  code:
+    | 'CONFIDENCE_TOO_HIGH'
+    | 'SEASON_EVIDENCE_MISMATCH'
+    | 'PALETTE_CONTRADICTION'
+    | 'GENERIC_RECOMMENDATION'
+    | 'QUALITY_UNCERTAINTY_MISSING';
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+};
+
+export type AnalysisCriticResult = {
+  passed: boolean;
+  issues: AnalysisCriticIssue[];
+  suggested_confidence?: number;
+  suggested_primary_season?: Season;
+  suggested_secondary_season?: Season | null;
+};
+
+export type AnalysisFeedback = {
+  feedback_id: string;
+  analysis_id: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  issue_tags: Array<'season' | 'undertone' | 'palette' | 'makeup' | 'fashion' | 'photo_quality' | 'other'>;
+  user_note?: string;
+  created_at: string;
 };
 
 export type ProductRecommendation = {
@@ -108,8 +168,11 @@ export type AnalysisResult = {
   created_at?: string;
   completed_at?: string;
   image_quality?: ImageQuality;
+  quality_assessment?: ImageQualityAssessment;
   season_result?: SeasonResult;
   attributes?: ColorAttributes;
+  evidence?: ColorAnalysisEvidence;
+  critic?: AnalysisCriticResult;
   summary?: {
     headline: string;
     one_liner: string;

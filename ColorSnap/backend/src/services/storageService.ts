@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import type { AnalysisResult } from '../types/analysis';
+import type { AnalysisFeedback, AnalysisResult } from '../types/analysis';
 import type { BookingRecord, OrderRecord } from '../types/commerce';
 import type { SavedResultRecord, ShareRecord } from '../types/share';
 
@@ -9,12 +9,14 @@ const bookings = new Map<string, BookingRecord>();
 const orders = new Map<string, OrderRecord>();
 const savedResults = new Map<string, SavedResultRecord>();
 const shares = new Map<string, ShareRecord>();
+const analysisFeedback = new Map<string, AnalysisFeedback[]>();
 const storageDirectory = path.resolve(__dirname, '../../.data');
 const analysesFilePath = path.join(storageDirectory, 'analyses.json');
 const bookingsFilePath = path.join(storageDirectory, 'bookings.json');
 const ordersFilePath = path.join(storageDirectory, 'orders.json');
 const savedResultsFilePath = path.join(storageDirectory, 'saved-results.json');
 const sharesFilePath = path.join(storageDirectory, 'shares.json');
+const analysisFeedbackFilePath = path.join(storageDirectory, 'analysis-feedback.json');
 
 const persistMap = <T>(filePath: string, records: Map<string, T>) => {
   fs.mkdirSync(storageDirectory, { recursive: true });
@@ -57,12 +59,14 @@ const persistBookings = () => persistMap(bookingsFilePath, bookings);
 const persistOrders = () => persistMap(ordersFilePath, orders);
 const persistSavedResults = () => persistMap(savedResultsFilePath, savedResults);
 const persistShares = () => persistMap(sharesFilePath, shares);
+const persistAnalysisFeedback = () => persistMap(analysisFeedbackFilePath, analysisFeedback);
 
 hydrateMap(analysesFilePath, analyses, 'analyses');
 hydrateMap(bookingsFilePath, bookings, 'bookings');
 hydrateMap(ordersFilePath, orders, 'orders');
 hydrateMap(savedResultsFilePath, savedResults, 'saved results');
 hydrateMap(sharesFilePath, shares, 'shares');
+hydrateMap(analysisFeedbackFilePath, analysisFeedback, 'analysis feedback');
 
 export const createProcessingAnalysis = () => {
   const analysis: AnalysisResult = {
@@ -202,3 +206,23 @@ export const getShareRecord = (shareId: string) => {
 
 export const getStoredSavedResultCount = () => savedResults.size;
 export const getStoredShareCount = () => shares.size;
+
+export const createAnalysisFeedbackRecord = (
+  input: Omit<AnalysisFeedback, 'feedback_id' | 'created_at'>
+) => {
+  const feedback: AnalysisFeedback = {
+    ...input,
+    feedback_id: createRecordId('fb'),
+    created_at: new Date().toISOString()
+  };
+  const currentFeedback = analysisFeedback.get(input.analysis_id) || [];
+
+  analysisFeedback.set(input.analysis_id, [...currentFeedback, feedback]);
+  persistAnalysisFeedback();
+
+  return feedback;
+};
+
+export const getAnalysisFeedbackRecords = (analysisId: string) => {
+  return analysisFeedback.get(analysisId) || [];
+};

@@ -1,4 +1,4 @@
-import type { AnalysisResult, CreateAnalysisResponse, ProductDetail } from '../types/analysis';
+import type { AnalysisFeedback, AnalysisResult, CreateAnalysisResponse, ProductDetail } from '../types/analysis';
 import type { CartItem } from '../utils/cart';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
@@ -108,6 +108,25 @@ export const createAnalysis = async (image: File): Promise<CreateAnalysisRespons
 export const getAnalysis = async (analysisId: string): Promise<AnalysisResult> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${encodeURIComponent(analysisId)}`);
   return readJson<AnalysisResult>(response);
+};
+
+export const createAnalysisFeedback = async (
+  analysisId: string,
+  input: {
+    rating: 1 | 2 | 3 | 4 | 5;
+    issue_tags: AnalysisFeedback['issue_tags'];
+    user_note?: string;
+  }
+): Promise<AnalysisFeedback> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${encodeURIComponent(analysisId)}/feedback`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(input)
+  });
+
+  return readJson<AnalysisFeedback>(response);
 };
 
 export const getProductDetail = async (slug: string, analysisId?: string | null): Promise<ProductDetail> => {

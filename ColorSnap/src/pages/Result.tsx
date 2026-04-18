@@ -9,9 +9,10 @@ import ImageQualityNotice from '../components/analysis/ImageQualityNotice';
 import PaletteSection from '../components/analysis/PaletteSection';
 import ProductRecommendations from '../components/analysis/ProductRecommendations';
 import ShareResultPanel from '../components/share/ShareResultPanel';
-import { getAnalysis } from '../services/api';
-import type { AnalysisResult, ProductRecommendation } from '../types/analysis';
+import { createAnalysisFeedback, getAnalysis } from '../services/api';
+import type { AnalysisFeedback, AnalysisResult, ProductRecommendation } from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
+import { formatLabel, formatPercent } from '../utils/formatters';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -160,11 +161,140 @@ const ProcessingList = styled.ul`
   gap: 0.45rem;
 `;
 
+const EvidenceGrid = styled.div`
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const EvidenceCard = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  text-align: left;
+`;
+
+const EvidenceTitle = styled.h3`
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  margin-bottom: var(--space-3);
+`;
+
+const EvidenceList = styled.ul`
+  color: var(--text-secondary);
+  display: grid;
+  gap: var(--space-2);
+  line-height: 1.6;
+  margin: 0;
+  padding-left: 1.1rem;
+`;
+
+const CandidateList = styled.div`
+  display: grid;
+  gap: var(--space-3);
+`;
+
+const CandidateItem = styled.div`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  text-align: left;
+`;
+
+const CandidateHeader = styled.div`
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+`;
+
+const CandidateScore = styled.span`
+  color: var(--accent-olive);
+  font-weight: 800;
+`;
+
+const ConfidenceBadge = styled.span<{ $level: 'confident' | 'likely' | 'tentative' }>`
+  background: ${(props) => (
+    props.$level === 'confident'
+      ? 'var(--surface-sage)'
+      : props.$level === 'likely'
+        ? '#FFF8EC'
+        : '#FFF4F2'
+  )};
+  border: 1px solid ${(props) => (
+    props.$level === 'confident'
+      ? '#DDE8DA'
+      : props.$level === 'likely'
+        ? '#E8D5B8'
+        : '#F0C9C3'
+  )};
+  border-radius: var(--radius-md);
+  color: ${(props) => (
+    props.$level === 'confident'
+      ? 'var(--accent-olive)'
+      : props.$level === 'likely'
+        ? 'var(--warning)'
+        : 'var(--error)'
+  )};
+  display: inline-flex;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+`;
+
+const FeedbackPanel = styled.div`
+  display: grid;
+  gap: var(--space-4);
+  margin: 0 auto;
+  max-width: 760px;
+  text-align: left;
+`;
+
+const FeedbackButtonRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+`;
+
+const FeedbackButton = styled.button<{ $selected?: boolean }>`
+  background: ${(props) => (props.$selected ? 'var(--brand-primary)' : 'var(--surface)')};
+  border: 1px solid ${(props) => (props.$selected ? 'var(--brand-primary)' : 'var(--border-soft)')};
+  border-radius: var(--radius-md);
+  color: ${(props) => (props.$selected ? 'var(--text-inverse)' : 'var(--text-primary)')};
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+`;
+
+const FeedbackStatus = styled.p`
+  color: var(--text-secondary);
+  margin: 0;
+`;
+
 const processingMessages = [
   'Checking lighting, clarity, and facial visibility.',
   'Estimating undertone, contrast, brightness, and saturation.',
   'Building your seasonal palette summary and product matches.'
 ];
+
+const getConfidenceLevel = (confidence: number): 'confident' | 'likely' | 'tentative' => {
+  if (confidence >= 0.8) return 'confident';
+  if (confidence >= 0.65) return 'likely';
+  return 'tentative';
+};
+
+const getConfidenceLabel = (confidence: number) => {
+  const level = getConfidenceLevel(confidence);
+  return level === 'confident' ? 'Confident' : level === 'likely' ? 'Likely' : 'Tentative';
+};
 
 const Result: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -174,6 +304,9 @@ const Result: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [processingStep, setProcessingStep] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
+  const [feedbackRating, setFeedbackRating] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [feedbackTags, setFeedbackTags] = useState<AnalysisFeedback['issue_tags']>([]);
+  const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
   const navigate = useNavigate();
   const analysisId = searchParams.get('id') || localStorage.getItem('lastAnalysisId');
 
@@ -257,6 +390,30 @@ const Result: React.FC = () => {
     setRetryCount((current) => current + 1);
   };
 
+  const toggleFeedbackTag = (tag: AnalysisFeedback['issue_tags'][number]) => {
+    setFeedbackTags((currentTags) => (
+      currentTags.includes(tag)
+        ? currentTags.filter((currentTag) => currentTag !== tag)
+        : [...currentTags, tag]
+    ));
+  };
+
+  const submitFeedback = async () => {
+    if (!analysis?.analysis_id || !feedbackRating) {
+      return;
+    }
+
+    try {
+      await createAnalysisFeedback(analysis.analysis_id, {
+        rating: feedbackRating,
+        issue_tags: feedbackTags
+      });
+      setFeedbackStatus('Feedback saved for future quality tuning.');
+    } catch (err) {
+      setFeedbackStatus(err instanceof Error ? err.message : 'Unable to save feedback.');
+    }
+  };
+
   const title = analysis?.status === 'completed' && analysis.season_result
     ? `Analysis Result: ${analysis.season_result.primary}`
     : 'Analysis Result';
@@ -318,7 +475,14 @@ const Result: React.FC = () => {
         )}
 
         {analysis?.status === 'completed' && (
-          <AnalysisSummary analysis={analysis} />
+          <>
+            {analysis.season_result && (
+              <ConfidenceBadge $level={getConfidenceLevel(analysis.season_result.confidence)}>
+                {getConfidenceLabel(analysis.season_result.confidence)} result
+              </ConfidenceBadge>
+            )}
+            <AnalysisSummary analysis={analysis} />
+          </>
         )}
 
         <ActionButtons>
@@ -335,11 +499,64 @@ const Result: React.FC = () => {
         <>
           <ReportSection>
             <SectionTitle>Your Color Profile</SectionTitle>
-            <ImageQualityNotice quality={analysis.image_quality} />
+            <ImageQualityNotice quality={analysis.image_quality} assessment={analysis.quality_assessment} />
             <ReportBlock>
               <AttributeChips attributes={analysis.attributes} />
             </ReportBlock>
           </ReportSection>
+
+          {analysis.evidence && (
+            <ReportSection>
+              <SectionTitle>Why This Result</SectionTitle>
+              <EvidenceGrid>
+                {Object.entries(analysis.evidence.observable_traits).map(([label, items]) => (
+                  <EvidenceCard key={label}>
+                    <EvidenceTitle>{formatLabel(label.replace('_evidence', ''))}</EvidenceTitle>
+                    <EvidenceList>
+                      {items.length > 0
+                        ? items.map((item) => <li key={item}>{item}</li>)
+                        : <li>Not enough visible evidence to make this trait highly certain.</li>}
+                    </EvidenceList>
+                  </EvidenceCard>
+                ))}
+              </EvidenceGrid>
+              {analysis.evidence.uncertainty_factors.length > 0 && (
+                <ReportBlock>
+                  <EvidenceCard>
+                    <EvidenceTitle>Uncertainty Factors</EvidenceTitle>
+                    <EvidenceList>
+                      {analysis.evidence.uncertainty_factors.map((factor) => (
+                        <li key={factor}>{factor}</li>
+                      ))}
+                    </EvidenceList>
+                  </EvidenceCard>
+                </ReportBlock>
+              )}
+            </ReportSection>
+          )}
+
+          {analysis.evidence?.top_season_candidates && (
+            <ReportSection>
+              <SectionTitle>Season Candidates</SectionTitle>
+              <CandidateList>
+                {analysis.evidence.top_season_candidates.map((candidate) => (
+                  <CandidateItem key={candidate.season}>
+                    <CandidateHeader>
+                      <strong>{candidate.season}</strong>
+                      <CandidateScore>{formatPercent(candidate.score)}</CandidateScore>
+                    </CandidateHeader>
+                    {candidate.evidence_for.length > 0 && (
+                      <EvidenceList>
+                        {candidate.evidence_for.map((evidence) => (
+                          <li key={evidence}>{evidence}</li>
+                        ))}
+                      </EvidenceList>
+                    )}
+                  </CandidateItem>
+                ))}
+              </CandidateList>
+            </ReportSection>
+          )}
 
           <ReportSection>
             <SectionTitle>Recommended Palette</SectionTitle>
@@ -349,6 +566,58 @@ const Result: React.FC = () => {
           <ReportSection>
             <SectionTitle>Save and Share Your Result</SectionTitle>
             <ShareResultPanel analysis={analysis} uploadedPhoto={uploadedPhoto} />
+          </ReportSection>
+
+          <ReportSection>
+            <SectionTitle>Result Feedback</SectionTitle>
+            <FeedbackPanel>
+              <FeedbackStatus>How accurate did this result feel?</FeedbackStatus>
+              <FeedbackButtonRow>
+                {([
+                  [5, 'Accurate'],
+                  [3, 'Somewhat'],
+                  [1, 'Not Accurate']
+                ] as Array<[1 | 3 | 5, string]>).map(([rating, label]) => (
+                  <FeedbackButton
+                    key={rating}
+                    type="button"
+                    $selected={feedbackRating === rating}
+                    onClick={() => setFeedbackRating(rating)}
+                  >
+                    {label}
+                  </FeedbackButton>
+                ))}
+              </FeedbackButtonRow>
+              <FeedbackStatus>What felt off?</FeedbackStatus>
+              <FeedbackButtonRow>
+                {([
+                  ['season', 'Season'],
+                  ['undertone', 'Undertone'],
+                  ['palette', 'Palette'],
+                  ['makeup', 'Makeup'],
+                  ['fashion', 'Fashion'],
+                  ['photo_quality', 'Photo Quality']
+                ] as Array<[AnalysisFeedback['issue_tags'][number], string]>).map(([tag, label]) => (
+                  <FeedbackButton
+                    key={tag}
+                    type="button"
+                    $selected={feedbackTags.includes(tag)}
+                    onClick={() => toggleFeedbackTag(tag)}
+                  >
+                    {label}
+                  </FeedbackButton>
+                ))}
+              </FeedbackButtonRow>
+              <ActionButton
+                type="button"
+                $variant="primary"
+                disabled={!feedbackRating}
+                onClick={submitFeedback}
+              >
+                Save Feedback
+              </ActionButton>
+              {feedbackStatus && <FeedbackStatus>{feedbackStatus}</FeedbackStatus>}
+            </FeedbackPanel>
           </ReportSection>
 
           <ReportSection>

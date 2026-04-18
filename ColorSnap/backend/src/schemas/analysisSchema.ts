@@ -19,6 +19,14 @@ const undertones = new Set(['warm', 'cool', 'neutral']);
 const brightnessValues = new Set(['low', 'medium-low', 'medium', 'medium-high', 'high']);
 const saturations = new Set(['muted', 'medium', 'bright']);
 const contrasts = new Set(['low', 'medium', 'high']);
+const faceVisibilityValues = new Set(['clear', 'partial', 'poor']);
+const lightingValues = new Set(['natural_even', 'warm_indoor', 'cool_indoor', 'backlit', 'mixed', 'poor']);
+const riskValues = new Set(['low', 'medium', 'high']);
+const makeupRiskValues = new Set(['none', 'light', 'heavy', 'unknown']);
+
+const isStringArray = (value: unknown): value is string[] => {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+};
 
 export const validateModelAnalysis = (analysis: ModelAnalysisOutput): ModelAnalysisOutput => {
   if (!analysis.image_quality || typeof analysis.image_quality.score !== 'number') {
@@ -52,6 +60,56 @@ export const validateModelAnalysis = (analysis: ModelAnalysisOutput): ModelAnaly
     !contrasts.has(analysis.attributes.contrast)
   ) {
     throw new Error('Model output has invalid color attributes.');
+  }
+
+  if (analysis.quality_assessment) {
+    if (
+      typeof analysis.quality_assessment.analysis_allowed !== 'boolean' ||
+      typeof analysis.quality_assessment.quality_score !== 'number' ||
+      analysis.quality_assessment.quality_score < 0 ||
+      analysis.quality_assessment.quality_score > 1 ||
+      typeof analysis.quality_assessment.face_count !== 'number' ||
+      !faceVisibilityValues.has(analysis.quality_assessment.face_visibility) ||
+      !lightingValues.has(analysis.quality_assessment.lighting) ||
+      !riskValues.has(analysis.quality_assessment.white_balance_risk) ||
+      !riskValues.has(analysis.quality_assessment.filter_or_heavy_editing_risk) ||
+      !makeupRiskValues.has(analysis.quality_assessment.makeup_risk) ||
+      !isStringArray(analysis.quality_assessment.retry_required_reasons) ||
+      typeof analysis.quality_assessment.user_guidance !== 'string'
+    ) {
+      throw new Error('Model output has invalid image quality assessment.');
+    }
+  }
+
+  if (!analysis.evidence) {
+    throw new Error('Model output is missing evidence.');
+  }
+
+  if (
+    !analysis.evidence.observable_traits ||
+    !isStringArray(analysis.evidence.observable_traits.undertone_evidence) ||
+    !isStringArray(analysis.evidence.observable_traits.contrast_evidence) ||
+    !isStringArray(analysis.evidence.observable_traits.brightness_evidence) ||
+    !isStringArray(analysis.evidence.observable_traits.saturation_evidence) ||
+    !isStringArray(analysis.evidence.uncertainty_factors) ||
+    typeof analysis.evidence.confidence_reason !== 'string' ||
+    !Array.isArray(analysis.evidence.top_season_candidates) ||
+    analysis.evidence.top_season_candidates.length < 2
+  ) {
+    throw new Error('Model output has invalid evidence fields.');
+  }
+
+  for (const candidate of analysis.evidence.top_season_candidates) {
+    if (
+      !seasons.has(candidate.season) ||
+      typeof candidate.score !== 'number' ||
+      candidate.score < 0 ||
+      candidate.score > 1 ||
+      !isStringArray(candidate.evidence_for) ||
+      !isStringArray(candidate.evidence_against)
+    ) {
+      throw new Error('Model output has invalid season candidate evidence.');
+    }
   }
 
   return analysis;
