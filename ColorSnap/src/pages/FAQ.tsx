@@ -1,47 +1,35 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import {
+  ActionRow,
+  DarkCta,
+  DarkCtaCopy,
+  DarkCtaTitle,
+  Description,
+  Eyebrow,
+  Hero,
+  HeroPanel,
+  PageContainer,
+  PageShell,
+  PrimaryLink,
+  SecondaryLink,
+  StatCard,
+  StatGrid,
+  StatLabel,
+  StatValue,
+  SurfaceCard,
+  Title
+} from '../components/editorial/PageScaffold';
 
-const PageShell = styled.section`
-  min-height: calc(100vh - 72px);
-  background:
-    linear-gradient(180deg, rgba(251, 238, 241, 0.72) 0%, rgba(255, 252, 250, 0) 34%),
-    var(--bg-page);
-  padding: var(--space-7) var(--space-6) var(--space-9);
+const ContentGrid = styled.div`
+  align-items: start;
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) 320px;
 
-  @media (max-width: 768px) {
-    padding: var(--space-6) var(--space-4) var(--space-8);
+  @media (max-width: 920px) {
+    grid-template-columns: 1fr;
   }
-`;
-
-const Container = styled.div`
-  max-width: var(--container-md);
-  margin: 0 auto;
-`;
-
-const HeaderBlock = styled.div`
-  margin-bottom: var(--space-6);
-  max-width: 760px;
-`;
-
-const Eyebrow = styled.p`
-  color: var(--brand-primary);
-  font-size: var(--font-sm);
-  font-weight: 800;
-  margin-bottom: var(--space-3);
-  text-transform: uppercase;
-`;
-
-const Title = styled.h1`
-  color: var(--text-primary);
-  font-size: clamp(2.25rem, 5vw, var(--font-4xl));
-  line-height: 1.05;
-  margin-bottom: var(--space-4);
-`;
-
-const Description = styled.p`
-  color: var(--text-secondary);
-  font-size: var(--font-lg);
-  line-height: 1.7;
 `;
 
 const FAQList = styled.div`
@@ -102,6 +90,31 @@ const Answer = styled.div<{ $isOpen: boolean }>`
   transition: max-height 180ms ease, padding 180ms ease;
 `;
 
+const AsideStack = styled.div`
+  display: grid;
+  gap: var(--space-4);
+`;
+
+const AsideTitle = styled.h2`
+  color: var(--text-primary);
+  font-size: var(--font-xl);
+  margin-bottom: var(--space-3);
+`;
+
+const AsideCopy = styled.p`
+  color: var(--text-secondary);
+  line-height: 1.7;
+`;
+
+const BulletList = styled.ul`
+  color: var(--text-secondary);
+  display: grid;
+  gap: var(--space-3);
+  line-height: 1.7;
+  margin: 0;
+  padding-left: 1.1rem;
+`;
+
 interface FAQData {
   question: string;
   answer: string;
@@ -110,23 +123,28 @@ interface FAQData {
 const faqData: FAQData[] = [
   {
     question: 'How accurate is the AI color analysis?',
-    answer: 'The current system supports a stable mock mode and an OpenAI-powered live mode. For a production product, results should be positioned as guidance and paired with expert review for high-confidence decisions.'
+    answer:
+      'The current system supports a stable mock mode and an OpenAI-powered live mode. For a production product, results should be positioned as guidance and paired with expert review for high-confidence decisions.'
   },
   {
     question: 'What type of photo should I upload?',
-    answer: 'Use a clear front-facing selfie in natural light. Avoid heavy filters, sunglasses, strong colored lighting, or makeup that changes your natural undertone.'
+    answer:
+      'Use a clear front-facing selfie in natural light. Avoid heavy filters, sunglasses, strong colored lighting, or makeup that changes your natural undertone.'
   },
   {
     question: 'How long does the analysis take?',
-    answer: 'Mock mode usually returns in a few seconds. Live AI mode depends on image size, network speed, and OpenAI response time.'
+    answer:
+      'Mock mode usually returns in a few seconds. Live AI mode depends on image size, network speed, and OpenAI response time.'
   },
   {
     question: 'What happens if the backend is offline?',
-    answer: 'The upload page now shows a clear service offline state and tells you to start the backend with npm.cmd run backend:dev before running a new analysis.'
+    answer:
+      'The upload page shows a clear service offline state and tells you to start the backend with npm run backend:dev before running a new analysis.'
   },
   {
     question: 'Are purchases completed inside ColorSnap?',
-    answer: 'ColorSnap acts as a recommendation and cart-building experience. Product purchases are completed through external retailers such as Sephora, Ulta Beauty, or Amazon.'
+    answer:
+      'ColorSnap acts as a recommendation and cart-building experience. Product purchases are completed through external retailers such as Sephora, Ulta Beauty, or Amazon.'
   },
   {
     question: 'Is checkout real?',
@@ -134,11 +152,13 @@ const faqData: FAQData[] = [
   },
   {
     question: 'Is my photo stored permanently?',
-    answer: 'In the current local version, the preview is stored in browser local storage for the session flow. A production version would need explicit consent, storage policies, and account controls.'
+    answer:
+      'In the current local version, the preview is stored in browser local storage for the session flow. A production version would need explicit consent, storage policies, and account controls.'
   },
   {
     question: 'Can I book a real consultation?',
-    answer: 'The booking page is currently a demo request flow. A production version could connect it to a backend booking API, email confirmation, and calendar availability.'
+    answer:
+      'The booking page is currently a demo request flow. A production version could connect it to a backend booking API, email confirmation, and calendar availability.'
   }
 ];
 
@@ -147,44 +167,107 @@ const FAQ: React.FC = () => {
 
   const toggleItem = (index: number) => {
     setOpenItems((current) => (
-      current.includes(index)
-        ? current.filter((item) => item !== index)
-        : [...current, index]
+      current.includes(index) ? current.filter((item) => item !== index) : [...current, index]
     ));
   };
 
   return (
     <PageShell>
-      <Container>
-        <HeaderBlock>
-          <Eyebrow>FAQ</Eyebrow>
-          <Title>Frequently Asked Questions</Title>
-          <Description>
-            Clear answers for the analysis flow, external shopping model, demo checkout, and capstone presentation scope.
-          </Description>
-        </HeaderBlock>
+      <PageContainer>
+        <Hero>
+          <HeroPanel>
+            <Eyebrow>FAQ</Eyebrow>
+            <Title>Answers for the analysis flow, shopping path, and demo scope.</Title>
+            <Description>
+              This page is meant to reduce friction during demos and first-time use: what to upload, what is simulated,
+              and what users should expect from the current product version.
+            </Description>
+            <StatGrid>
+              <StatCard>
+                <StatValue>8</StatValue>
+                <StatLabel>Common questions answered in one place</StatLabel>
+              </StatCard>
+              <StatCard>
+                <StatValue>Mock / Live</StatValue>
+                <StatLabel>Supported analysis modes in the current build</StatLabel>
+              </StatCard>
+              <StatCard>
+                <StatValue>Demo</StatValue>
+                <StatLabel>Checkout and booking flows in the capstone version</StatLabel>
+              </StatCard>
+            </StatGrid>
+          </HeroPanel>
 
-        <FAQList>
-          {faqData.map((item, index) => {
-            const isOpen = openItems.includes(index);
+          <HeroPanel>
+            <Eyebrow>Quick Guidance</Eyebrow>
+            <AsideTitle>Before you start the analysis</AsideTitle>
+            <AsideCopy>
+              The strongest results come from a clear portrait, neutral lighting, and visible natural features.
+            </AsideCopy>
+            <BulletList>
+              <li>Use a front-facing selfie with minimal shadows.</li>
+              <li>Avoid heavy filters and strong colored light casts.</li>
+              <li>Keep the backend running if you want a fresh analysis.</li>
+              <li>Use demo checkout and booking as flow previews, not real transactions.</li>
+            </BulletList>
+          </HeroPanel>
+        </Hero>
 
-            return (
-              <FAQItem key={item.question}>
-                <Question
-                  type="button"
-                  $isOpen={isOpen}
-                  onClick={() => toggleItem(index)}
-                  aria-expanded={isOpen}
-                >
-                  {item.question}
-                  <Indicator $isOpen={isOpen}>+</Indicator>
-                </Question>
-                <Answer $isOpen={isOpen}>{item.answer}</Answer>
-              </FAQItem>
-            );
-          })}
-        </FAQList>
-      </Container>
+        <ContentGrid>
+          <FAQList>
+            {faqData.map((item, index) => {
+              const isOpen = openItems.includes(index);
+
+              return (
+                <FAQItem key={item.question}>
+                  <Question
+                    type="button"
+                    $isOpen={isOpen}
+                    onClick={() => toggleItem(index)}
+                    aria-expanded={isOpen}
+                  >
+                    {item.question}
+                    <Indicator $isOpen={isOpen}>+</Indicator>
+                  </Question>
+                  <Answer $isOpen={isOpen}>{item.answer}</Answer>
+                </FAQItem>
+              );
+            })}
+          </FAQList>
+
+          <AsideStack>
+            <SurfaceCard>
+              <AsideTitle>Need a guided walkthrough?</AsideTitle>
+              <AsideCopy>
+                Follow the cleanest demo path: upload one photo, review your report, open a product detail page, then
+                continue into cart, checkout, or consultation booking.
+              </AsideCopy>
+            </SurfaceCard>
+
+            <SurfaceCard>
+              <AsideTitle>Current product boundaries</AsideTitle>
+              <BulletList>
+                <li>Purchases complete on external retailer sites.</li>
+                <li>Checkout is intentionally non-payment demo logic.</li>
+                <li>Booking stores requests locally for the capstone flow.</li>
+                <li>Production deployment, auth, and persistent storage are future work.</li>
+              </BulletList>
+            </SurfaceCard>
+          </AsideStack>
+        </ContentGrid>
+
+        <DarkCta>
+          <DarkCtaTitle>Ready to try the flow with the expectations set clearly?</DarkCtaTitle>
+          <DarkCtaCopy>
+            Start the upload flow for the analysis experience, or browse expert consultations if you want the human
+            support path first.
+          </DarkCtaCopy>
+          <ActionRow>
+            <PrimaryLink to="/analysis">Start Analysis</PrimaryLink>
+            <SecondaryLink to="/consultation">Explore Consultations</SecondaryLink>
+          </ActionRow>
+        </DarkCta>
+      </PageContainer>
     </PageShell>
   );
 };
