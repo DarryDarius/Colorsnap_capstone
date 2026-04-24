@@ -43,7 +43,7 @@ const normalizeOrderItem = (value: unknown): OrderItem => {
   };
 };
 
-export const createOrder = (req: Request, res: Response) => {
+export const createOrder = async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
     const email = getString(body.email);
@@ -61,7 +61,8 @@ export const createOrder = (req: Request, res: Response) => {
       .reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0)
       .toFixed(2);
 
-    const order = createOrderRecord({
+    const order = await createOrderRecord({
+      user_id: req.user?.id,
       email,
       items,
       total,
@@ -75,12 +76,16 @@ export const createOrder = (req: Request, res: Response) => {
   }
 };
 
-export const fetchOrder = (req: Request, res: Response) => {
+export const fetchOrder = async (req: Request, res: Response) => {
   try {
-    const order = getOrderRecord(req.params.order_id);
+    const order = await getOrderRecord(req.params.order_id);
 
     if (!order) {
       throw new ApiError(404, 'ORDER_NOT_FOUND', 'Order was not found.');
+    }
+
+    if (order.user_id && order.user_id !== req.user?.id) {
+      throw new ApiError(403, 'ORDER_FORBIDDEN', 'You do not have access to this order.');
     }
 
     res.json(order);

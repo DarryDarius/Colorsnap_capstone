@@ -22,12 +22,12 @@ const processAnalysis = async (analysisId: string, image: Awaited<ReturnType<typ
       limit: 6
     });
 
-    completeAnalysis(analysisId, {
+    await completeAnalysis(analysisId, {
       ...modelResult,
       products
     });
   } catch (error) {
-    failAnalysis(
+    await failAnalysis(
       analysisId,
       error instanceof ApiError ? error.code : 'MODEL_ERROR',
       error instanceof Error ? error.message : 'Analysis could not be completed.'
@@ -38,7 +38,7 @@ const processAnalysis = async (analysisId: string, image: Awaited<ReturnType<typ
 export const createAnalysis = async (req: Request, res: Response) => {
   try {
     const image = await parseUploadedImage(req);
-    const analysis = createProcessingAnalysis();
+    const analysis = await createProcessingAnalysis(req.user?.id);
 
     void processAnalysis(analysis.analysis_id, image);
 
@@ -54,9 +54,9 @@ export const createAnalysis = async (req: Request, res: Response) => {
   }
 };
 
-export const fetchAnalysis = (req: Request, res: Response) => {
+export const fetchAnalysis = async (req: Request, res: Response) => {
   try {
-    const analysis = getAnalysis(req.params.analysis_id);
+    const analysis = await getAnalysis(req.params.analysis_id);
 
     if (!analysis) {
       throw new ApiError(404, 'ANALYSIS_NOT_FOUND', 'Analysis was not found.');
@@ -71,9 +71,9 @@ export const fetchAnalysis = (req: Request, res: Response) => {
 
 const allowedFeedbackTags = new Set(['season', 'undertone', 'palette', 'makeup', 'fashion', 'photo_quality', 'other']);
 
-export const createAnalysisFeedback = (req: Request, res: Response) => {
+export const createAnalysisFeedback = async (req: Request, res: Response) => {
   try {
-    const analysis = getAnalysis(req.params.analysis_id);
+    const analysis = await getAnalysis(req.params.analysis_id);
 
     if (!analysis) {
       throw new ApiError(404, 'ANALYSIS_NOT_FOUND', 'Analysis was not found.');
@@ -90,8 +90,9 @@ export const createAnalysisFeedback = (req: Request, res: Response) => {
       throw new ApiError(400, 'INVALID_FEEDBACK', 'rating must be an integer from 1 to 5.');
     }
 
-    const feedback = createAnalysisFeedbackRecord({
+    const feedback = await createAnalysisFeedbackRecord({
       analysis_id: analysis.analysis_id,
+      user_id: req.user?.id,
       rating: rating as 1 | 2 | 3 | 4 | 5,
       issue_tags: issueTags as Array<'season' | 'undertone' | 'palette' | 'makeup' | 'fashion' | 'photo_quality' | 'other'>,
       user_note: userNote || undefined
@@ -104,16 +105,16 @@ export const createAnalysisFeedback = (req: Request, res: Response) => {
   }
 };
 
-export const fetchAnalysisFeedback = (req: Request, res: Response) => {
+export const fetchAnalysisFeedback = async (req: Request, res: Response) => {
   try {
-    const analysis = getAnalysis(req.params.analysis_id);
+    const analysis = await getAnalysis(req.params.analysis_id);
 
     if (!analysis) {
       throw new ApiError(404, 'ANALYSIS_NOT_FOUND', 'Analysis was not found.');
     }
 
     res.json({
-      items: getAnalysisFeedbackRecords(analysis.analysis_id)
+      items: await getAnalysisFeedbackRecords(analysis.analysis_id)
     });
   } catch (error) {
     const response = toErrorResponse(error);

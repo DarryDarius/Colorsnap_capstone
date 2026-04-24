@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
+import { useAuth } from '../context/AuthContext';
 
 const HeaderContainer = styled.header`
   position: fixed;
@@ -199,17 +200,35 @@ const MobileNavLink = styled(Link)<{ $isActive: boolean }>`
   }
 `;
 
+const NavButton = styled.button`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.65rem 0.85rem;
+
+  &:hover {
+    background: var(--brand-primary-pale);
+    color: var(--brand-primary);
+  }
+`;
+
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { path: '/', label: 'Home' },
     { path: '/analysis', label: 'Start Analysis', isCta: true },
+    ...(user ? [{ path: '/my-results', label: 'My Results' }] : []),
     { path: '/consultation', label: 'Consultation' },
     { path: '/shopping-cart', label: 'Cart' },
     { path: '/about', label: 'About' },
     { path: '/faq', label: 'FAQ' },
+    ...(!user ? [{ path: '/login', label: 'Log In' }] : []),
   ];
 
   const toggleMobileMenu = () => {
@@ -234,6 +253,13 @@ const Header: React.FC = () => {
                 </NavLink>
               </NavItem>
             ))}
+            {user && (
+              <NavItem>
+                <NavButton type="button" onClick={logout}>
+                  Sign Out
+                </NavButton>
+              </NavItem>
+            )}
           </NavList>
         </Nav>
 
@@ -256,6 +282,19 @@ const Header: React.FC = () => {
               </MobileNavLink>
             </MobileNavItem>
           ))}
+          {user && (
+            <MobileNavItem>
+              <NavButton
+                type="button"
+                onClick={() => {
+                  logout();
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                Sign Out
+              </NavButton>
+            </MobileNavItem>
+          )}
         </MobileNavList>
       </MobileMenu>
     </>

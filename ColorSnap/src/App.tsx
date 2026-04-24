@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import styled, { createGlobalStyle } from 'styled-components';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import { AuthProvider } from './context/AuthContext';
 import Home from './pages/Home';
 import Analysis from './pages/Analysis';
 import Result from './pages/Result';
@@ -14,6 +15,9 @@ import Booking from './pages/Booking';
 import Payment from './pages/Payment';
 import ProductDetail from './pages/ProductDetail';
 import SharedResult from './pages/SharedResult';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import MyResults from './pages/MyResults';
 
 const GlobalStyle = createGlobalStyle`
   :root {
@@ -241,26 +245,31 @@ const MainContent = styled.main`
 function App() {
   return (
     <Router basename={process.env.PUBLIC_URL}>
-      <GlobalStyle />
-      <AppContainer>
-        <Header />
-        <MainContent>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/analysis" element={<Analysis />} />
-            <Route path="/result" element={<Result />} />
-            <Route path="/consultation" element={<Consultation />} />
-            <Route path="/shopping-cart" element={<ShoppingCart />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/faq" element={<FAQ />} />
-            <Route path="/booking" element={<Booking />} />
-            <Route path="/payment" element={<Payment />} />
-            <Route path="/products/:slug" element={<ProductDetail />} />
-            <Route path="/share/:shareId" element={<SharedResult />} />
-          </Routes>
-        </MainContent>
-        <Footer />
-      </AppContainer>
+      <AuthProvider>
+        <GlobalStyle />
+        <AppContainer>
+          <Header />
+          <MainContent>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/analysis" element={<Analysis />} />
+              <Route path="/result" element={<Result />} />
+              <Route path="/consultation" element={<Consultation />} />
+              <Route path="/shopping-cart" element={<ShoppingCart />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/faq" element={<FAQ />} />
+              <Route path="/booking" element={<Booking />} />
+              <Route path="/payment" element={<Payment />} />
+              <Route path="/products/:slug" element={<ProductDetail />} />
+              <Route path="/share/:shareId" element={<SharedResult />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/my-results" element={<MyResults />} />
+            </Routes>
+          </MainContent>
+          <Footer />
+        </AppContainer>
+      </AuthProvider>
     </Router>
   );
 }

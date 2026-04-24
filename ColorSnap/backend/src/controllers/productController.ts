@@ -38,7 +38,7 @@ export const fetchProductRecommendations = (req: Request, res: Response) => {
   }
 };
 
-export const fetchProductDetail = (req: Request, res: Response) => {
+export const fetchProductDetail = async (req: Request, res: Response) => {
   try {
     const product = getProductDetailBySlug(req.params.slug);
 
@@ -47,7 +47,7 @@ export const fetchProductDetail = (req: Request, res: Response) => {
     }
 
     const analysisId = req.query.analysis_id as string | undefined;
-    const analysis = analysisId ? getAnalysis(analysisId) : null;
+    const analysis = analysisId ? await getAnalysis(analysisId) : null;
 
     if (
       analysis?.status === 'completed' &&
