@@ -6,6 +6,7 @@ export type BookingAddOn = 'wardrobe_review' | 'makeup_audit';
 
 export type BookingRecord = {
   booking_id: string;
+  user_id?: string;
   status: 'requested';
   expert_id: string;
   expert_name: string;
@@ -40,6 +41,7 @@ export type OrderItem = {
 
 export type OrderRecord = {
   order_id: string;
+  user_id?: string;
   status: 'confirmed';
   demo: true;
   email: string;

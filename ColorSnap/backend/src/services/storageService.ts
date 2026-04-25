@@ -1,52 +1,21 @@
 import fs from 'fs';
 import path from 'path';
+import { PrismaClient } from '@prisma/client';
 import type { AnalysisFeedback, AnalysisResult } from '../types/analysis';
 import type { BookingRecord, OrderRecord } from '../types/commerce';
 import type { SavedResultRecord, ShareRecord } from '../types/share';
 
-const analyses = new Map<string, AnalysisResult>();
-const bookings = new Map<string, BookingRecord>();
-const orders = new Map<string, OrderRecord>();
-const savedResults = new Map<string, SavedResultRecord>();
-const shares = new Map<string, ShareRecord>();
-const analysisFeedback = new Map<string, AnalysisFeedback[]>();
 const storageDirectory = path.resolve(__dirname, '../../.data');
-const analysesFilePath = path.join(storageDirectory, 'analyses.json');
-const bookingsFilePath = path.join(storageDirectory, 'bookings.json');
-const ordersFilePath = path.join(storageDirectory, 'orders.json');
-const savedResultsFilePath = path.join(storageDirectory, 'saved-results.json');
-const sharesFilePath = path.join(storageDirectory, 'shares.json');
-const analysisFeedbackFilePath = path.join(storageDirectory, 'analysis-feedback.json');
+const databasePath = path.join(storageDirectory, 'colorsnap.db').replace(/\\/g, '/');
 
-const persistMap = <T>(filePath: string, records: Map<string, T>) => {
-  fs.mkdirSync(storageDirectory, { recursive: true });
-  fs.writeFileSync(
-    filePath,
-    JSON.stringify(Object.fromEntries(records.entries()), null, 2),
-    'utf8'
-  );
-};
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = `file:${databasePath}`;
+}
 
-const hydrateMap = <T>(filePath: string, records: Map<string, T>, label: string) => {
-  try {
-    if (!fs.existsSync(filePath)) {
-      return;
-    }
+fs.mkdirSync(storageDirectory, { recursive: true });
 
-    const rawContent = fs.readFileSync(filePath, 'utf8').trim();
-    if (!rawContent) {
-      return;
-    }
-
-    const parsed = JSON.parse(rawContent) as Record<string, T>;
-
-    for (const [recordId, record] of Object.entries(parsed)) {
-      records.set(recordId, record);
-    }
-  } catch (error) {
-    console.warn(`[ColorSnap] Failed to hydrate stored ${label}.`, error);
-  }
-};
+const prisma = new PrismaClient();
+let schemaReadyPromise: Promise<void> | null = null;
 
 const createRecordId = (prefix: string) => {
   const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
@@ -54,175 +23,595 @@ const createRecordId = (prefix: string) => {
   return `${prefix}_${timestamp}_${random}`;
 };
 
-const persistAnalyses = () => persistMap(analysesFilePath, analyses);
-const persistBookings = () => persistMap(bookingsFilePath, bookings);
-const persistOrders = () => persistMap(ordersFilePath, orders);
-const persistSavedResults = () => persistMap(savedResultsFilePath, savedResults);
-const persistShares = () => persistMap(sharesFilePath, shares);
-const persistAnalysisFeedback = () => persistMap(analysisFeedbackFilePath, analysisFeedback);
+const nowIso = () => new Date().toISOString();
 
-hydrateMap(analysesFilePath, analyses, 'analyses');
-hydrateMap(bookingsFilePath, bookings, 'bookings');
-hydrateMap(ordersFilePath, orders, 'orders');
-hydrateMap(savedResultsFilePath, savedResults, 'saved results');
-hydrateMap(sharesFilePath, shares, 'shares');
-hydrateMap(analysisFeedbackFilePath, analysisFeedback, 'analysis feedback');
+const stringify = (value: unknown) => JSON.stringify(value);
 
-export const createProcessingAnalysis = () => {
-  const analysis: AnalysisResult = {
-    analysis_id: createRecordId('ana'),
-    status: 'processing',
-    created_at: new Date().toISOString()
-  };
+const parseJson = <T>(value: string | null | undefined): T | undefined => {
+  if (!value) {
+    return undefined;
+  }
 
-  analyses.set(analysis.analysis_id, analysis);
-  persistAnalyses();
-  return analysis;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return undefined;
+  }
 };
 
-export const getAnalysis = (analysisId: string) => {
-  return analyses.get(analysisId) || null;
+export const ensureDatabaseReady = async () => {
+  if (!schemaReadyPromise) {
+    schemaReadyPromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "User" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "email" TEXT NOT NULL UNIQUE,
+          "passwordHash" TEXT NOT NULL,
+          "name" TEXT,
+          "role" TEXT NOT NULL DEFAULT 'user',
+          "createdAt" TEXT NOT NULL,
+          "updatedAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Analysis" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "status" TEXT NOT NULL,
+          "source" TEXT,
+          "imageQualityJson" TEXT,
+          "qualityAssessmentJson" TEXT,
+          "seasonResultJson" TEXT,
+          "attributesJson" TEXT,
+          "evidenceJson" TEXT,
+          "criticJson" TEXT,
+          "summaryJson" TEXT,
+          "recommendedPaletteJson" TEXT,
+          "beautyRecommendationsJson" TEXT,
+          "fashionRecommendationsJson" TEXT,
+          "productsJson" TEXT,
+          "betaFeaturesJson" TEXT,
+          "errorJson" TEXT,
+          "createdAt" TEXT NOT NULL,
+          "completedAt" TEXT,
+          "updatedAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "AnalysisFeedback" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "analysisId" TEXT NOT NULL,
+          "userId" TEXT,
+          "rating" INTEGER NOT NULL,
+          "issueTagsJson" TEXT NOT NULL,
+          "userNote" TEXT,
+          "createdAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SavedResult" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "analysisId" TEXT NOT NULL,
+          "title" TEXT NOT NULL,
+          "primarySeason" TEXT NOT NULL,
+          "secondarySeason" TEXT,
+          "confidence" REAL,
+          "paletteJson" TEXT NOT NULL,
+          "summary" TEXT NOT NULL,
+          "includePhoto" BOOLEAN NOT NULL DEFAULT false,
+          "createdAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ShareRecord" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "analysisId" TEXT NOT NULL,
+          "savedResultId" TEXT,
+          "visibility" TEXT NOT NULL DEFAULT 'unlisted',
+          "title" TEXT NOT NULL,
+          "description" TEXT NOT NULL,
+          "primarySeason" TEXT NOT NULL,
+          "secondarySeason" TEXT,
+          "paletteJson" TEXT NOT NULL,
+          "includePhoto" BOOLEAN NOT NULL DEFAULT false,
+          "imageUrl" TEXT,
+          "shareUrl" TEXT NOT NULL,
+          "disabledAt" TEXT,
+          "expiresAt" TEXT,
+          "createdAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Booking" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "expertId" TEXT NOT NULL,
+          "expertName" TEXT NOT NULL,
+          "name" TEXT NOT NULL,
+          "email" TEXT NOT NULL,
+          "phone" TEXT,
+          "date" TEXT NOT NULL,
+          "time" TEXT NOT NULL,
+          "duration" TEXT NOT NULL,
+          "message" TEXT,
+          "status" TEXT NOT NULL,
+          "createdAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Order" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "status" TEXT NOT NULL,
+          "demo" BOOLEAN NOT NULL DEFAULT true,
+          "email" TEXT NOT NULL,
+          "total" TEXT NOT NULL,
+          "currency" TEXT NOT NULL,
+          "createdAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "OrderItem" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "orderId" TEXT NOT NULL,
+          "productId" TEXT NOT NULL,
+          "slug" TEXT,
+          "name" TEXT NOT NULL,
+          "brand" TEXT,
+          "category" TEXT,
+          "shade" TEXT,
+          "price" TEXT NOT NULL,
+          "currency" TEXT NOT NULL,
+          "image" TEXT,
+          "quantity" INTEGER NOT NULL,
+          "retailerName" TEXT,
+          "purchaseUrl" TEXT
+        )
+      `);
+    })();
+  }
+
+  return schemaReadyPromise;
 };
 
-export const completeAnalysis = (
+type AnalysisRow = Awaited<ReturnType<typeof prisma.analysis.findUnique>>;
+type FeedbackRow = Awaited<ReturnType<typeof prisma.analysisFeedback.findFirst>>;
+type SavedResultRow = Awaited<ReturnType<typeof prisma.savedResult.findUnique>>;
+type ShareRow = Awaited<ReturnType<typeof prisma.shareRecord.findUnique>>;
+type BookingRow = Awaited<ReturnType<typeof prisma.booking.findUnique>>;
+type OrderRow = Awaited<ReturnType<typeof prisma.order.findUnique>>;
+
+const toAnalysisResult = (row: NonNullable<AnalysisRow>): AnalysisResult => ({
+  analysis_id: row.id,
+  status: row.status as AnalysisResult['status'],
+  created_at: row.createdAt,
+  completed_at: row.completedAt || undefined,
+  image_quality: parseJson<AnalysisResult['image_quality']>(row.imageQualityJson),
+  quality_assessment: parseJson<AnalysisResult['quality_assessment']>(row.qualityAssessmentJson),
+  season_result: parseJson<AnalysisResult['season_result']>(row.seasonResultJson),
+  attributes: parseJson<AnalysisResult['attributes']>(row.attributesJson),
+  evidence: parseJson<AnalysisResult['evidence']>(row.evidenceJson),
+  critic: parseJson<AnalysisResult['critic']>(row.criticJson),
+  summary: parseJson<AnalysisResult['summary']>(row.summaryJson),
+  recommended_palette: parseJson<AnalysisResult['recommended_palette']>(row.recommendedPaletteJson),
+  beauty_recommendations: parseJson<AnalysisResult['beauty_recommendations']>(row.beautyRecommendationsJson),
+  fashion_recommendations: parseJson<AnalysisResult['fashion_recommendations']>(row.fashionRecommendationsJson),
+  products: parseJson<AnalysisResult['products']>(row.productsJson),
+  beta_features: parseJson<AnalysisResult['beta_features']>(row.betaFeaturesJson),
+  error: parseJson<AnalysisResult['error']>(row.errorJson)
+});
+
+const toFeedbackRecord = (row: NonNullable<FeedbackRow>): AnalysisFeedback => ({
+  feedback_id: row.id,
+  analysis_id: row.analysisId,
+  rating: row.rating as AnalysisFeedback['rating'],
+  issue_tags: parseJson<AnalysisFeedback['issue_tags']>(row.issueTagsJson) || [],
+  user_note: row.userNote || undefined,
+  created_at: row.createdAt
+});
+
+const toSavedResultRecord = (row: NonNullable<SavedResultRow>): SavedResultRecord => ({
+  saved_result_id: row.id,
+  analysis_id: row.analysisId,
+  user_id: row.userId || undefined,
+  title: row.title,
+  primary_season: row.primarySeason as SavedResultRecord['primary_season'],
+  secondary_season: row.secondarySeason as SavedResultRecord['secondary_season'],
+  confidence: row.confidence || undefined,
+  palette: parseJson<SavedResultRecord['palette']>(row.paletteJson) || [],
+  summary: row.summary,
+  include_photo: row.includePhoto,
+  created_at: row.createdAt
+});
+
+const toShareRecord = (row: NonNullable<ShareRow>): ShareRecord => ({
+  share_id: row.id,
+  analysis_id: row.analysisId,
+  user_id: row.userId || undefined,
+  saved_result_id: row.savedResultId || undefined,
+  visibility: 'unlisted',
+  title: row.title,
+  description: row.description,
+  primary_season: row.primarySeason as ShareRecord['primary_season'],
+  secondary_season: row.secondarySeason as ShareRecord['secondary_season'],
+  palette: parseJson<ShareRecord['palette']>(row.paletteJson) || [],
+  include_photo: row.includePhoto,
+  image_url: row.imageUrl,
+  share_url: row.shareUrl,
+  created_at: row.createdAt
+});
+
+const toBookingRecord = (row: NonNullable<BookingRow>): BookingRecord => ({
+  booking_id: row.id,
+  user_id: row.userId || undefined,
+  expert_id: row.expertId,
+  expert_name: row.expertName,
+  name: row.name,
+  email: row.email,
+  phone: row.phone || undefined,
+  date: row.date,
+  time: row.time,
+  duration: row.duration as BookingRecord['duration'],
+  message: row.message || undefined,
+  status: 'requested',
+  created_at: row.createdAt
+});
+
+const toOrderRecord = (row: NonNullable<OrderRow> & { items?: Array<{
+  productId: string;
+  slug: string | null;
+  name: string;
+  brand: string | null;
+  category: string | null;
+  shade: string | null;
+  price: string;
+  currency: string;
+  image: string | null;
+  quantity: number;
+  retailerName: string | null;
+  purchaseUrl: string | null;
+}> }): OrderRecord => ({
+  order_id: row.id,
+  user_id: row.userId || undefined,
+  status: 'confirmed',
+  demo: true,
+  email: row.email,
+  total: row.total,
+  currency: row.currency as OrderRecord['currency'],
+  created_at: row.createdAt,
+  items: (row.items || []).map((item) => ({
+    id: item.productId,
+    slug: item.slug || undefined,
+    name: item.name,
+    brand: item.brand || undefined,
+    category: item.category as OrderRecord['items'][number]['category'],
+    shade: item.shade || undefined,
+    price: item.price,
+    currency: item.currency as OrderRecord['items'][number]['currency'],
+    image: item.image || undefined,
+    quantity: item.quantity,
+    retailerName: item.retailerName || undefined,
+    purchaseUrl: item.purchaseUrl || undefined
+  }))
+});
+
+export const createProcessingAnalysis = async (userId?: string | null) => {
+  await ensureDatabaseReady();
+  const timestamp = nowIso();
+  const analysis = await prisma.analysis.create({
+    data: {
+      id: createRecordId('ana'),
+      userId: userId || null,
+      status: 'processing',
+      source: 'web',
+      createdAt: timestamp,
+      updatedAt: timestamp
+    }
+  });
+
+  return toAnalysisResult(analysis);
+};
+
+export const getAnalysis = async (analysisId: string) => {
+  await ensureDatabaseReady();
+  const analysis = await prisma.analysis.findUnique({
+    where: { id: analysisId }
+  });
+
+  return analysis ? toAnalysisResult(analysis) : null;
+};
+
+export const completeAnalysis = async (
   analysisId: string,
   result: Omit<AnalysisResult, 'analysis_id' | 'status' | 'created_at' | 'completed_at'>
 ) => {
-  const current = analyses.get(analysisId);
+  await ensureDatabaseReady();
+  const current = await prisma.analysis.findUnique({
+    where: { id: analysisId }
+  });
+
   if (!current) return null;
 
-  const completed: AnalysisResult = {
-    ...current,
-    ...result,
-    status: 'completed',
-    completed_at: new Date().toISOString()
-  };
-
-  analyses.set(analysisId, completed);
-  persistAnalyses();
-  return completed;
-};
-
-export const failAnalysis = (analysisId: string, code: string, message: string) => {
-  const current = analyses.get(analysisId);
-  if (!current) return null;
-
-  const failed: AnalysisResult = {
-    ...current,
-    status: 'failed',
-    completed_at: new Date().toISOString(),
-    error: {
-      code,
-      message
+  const completed = await prisma.analysis.update({
+    where: { id: analysisId },
+    data: {
+      status: 'completed',
+      imageQualityJson: result.image_quality ? stringify(result.image_quality) : null,
+      qualityAssessmentJson: result.quality_assessment ? stringify(result.quality_assessment) : null,
+      seasonResultJson: result.season_result ? stringify(result.season_result) : null,
+      attributesJson: result.attributes ? stringify(result.attributes) : null,
+      evidenceJson: result.evidence ? stringify(result.evidence) : null,
+      criticJson: result.critic ? stringify(result.critic) : null,
+      summaryJson: result.summary ? stringify(result.summary) : null,
+      recommendedPaletteJson: result.recommended_palette ? stringify(result.recommended_palette) : null,
+      beautyRecommendationsJson: result.beauty_recommendations ? stringify(result.beauty_recommendations) : null,
+      fashionRecommendationsJson: result.fashion_recommendations ? stringify(result.fashion_recommendations) : null,
+      productsJson: result.products ? stringify(result.products) : null,
+      betaFeaturesJson: result.beta_features ? stringify(result.beta_features) : null,
+      errorJson: null,
+      completedAt: nowIso(),
+      updatedAt: nowIso()
     }
-  };
+  });
 
-  analyses.set(analysisId, failed);
-  persistAnalyses();
-  return failed;
+  return toAnalysisResult(completed);
 };
 
-export const getStoredAnalysisCount = () => analyses.size;
+export const failAnalysis = async (analysisId: string, code: string, message: string) => {
+  await ensureDatabaseReady();
+  const current = await prisma.analysis.findUnique({
+    where: { id: analysisId }
+  });
 
-export const createBookingRecord = (
+  if (!current) return null;
+
+  const failed = await prisma.analysis.update({
+    where: { id: analysisId },
+    data: {
+      status: 'failed',
+      completedAt: nowIso(),
+      updatedAt: nowIso(),
+      errorJson: stringify({ code, message })
+    }
+  });
+
+  return toAnalysisResult(failed);
+};
+
+export const getStoredAnalysisCount = async () => {
+  await ensureDatabaseReady();
+  return prisma.analysis.count();
+};
+
+export const createBookingRecord = async (
   input: Omit<BookingRecord, 'booking_id' | 'status' | 'created_at'>
 ) => {
-  const booking: BookingRecord = {
-    ...input,
-    booking_id: createRecordId('book'),
-    status: 'requested',
-    created_at: new Date().toISOString()
-  };
+  await ensureDatabaseReady();
+  const booking = await prisma.booking.create({
+    data: {
+      id: createRecordId('book'),
+      userId: input.user_id || null,
+      expertId: input.expert_id,
+      expertName: input.expert_name,
+      name: input.name,
+      email: input.email,
+      phone: input.phone || null,
+      date: input.date,
+      time: input.time,
+      duration: input.duration,
+      message: input.message || null,
+      status: 'requested',
+      createdAt: nowIso()
+    }
+  });
 
-  bookings.set(booking.booking_id, booking);
-  persistBookings();
-  return booking;
+  return toBookingRecord(booking);
 };
 
-export const getBookingRecord = (bookingId: string) => {
-  return bookings.get(bookingId) || null;
+export const getBookingRecord = async (bookingId: string) => {
+  await ensureDatabaseReady();
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId }
+  });
+
+  return booking ? toBookingRecord(booking) : null;
 };
 
-export const createOrderRecord = (
+export const createOrderRecord = async (
   input: Omit<OrderRecord, 'order_id' | 'status' | 'demo' | 'created_at'>
 ) => {
-  const order: OrderRecord = {
-    ...input,
-    order_id: createRecordId('ord'),
-    status: 'confirmed',
-    demo: true,
-    created_at: new Date().toISOString()
-  };
+  await ensureDatabaseReady();
+  const order = await prisma.order.create({
+    data: {
+      id: createRecordId('ord'),
+      userId: input.user_id || null,
+      status: 'confirmed',
+      demo: true,
+      email: input.email,
+      total: input.total,
+      currency: input.currency,
+      createdAt: nowIso(),
+      items: {
+        create: input.items.map((item) => ({
+          id: createRecordId('item'),
+          productId: item.id,
+          slug: item.slug || null,
+          name: item.name,
+          brand: item.brand || null,
+          category: item.category || null,
+          shade: item.shade || null,
+          price: item.price,
+          currency: item.currency,
+          image: item.image || null,
+          quantity: item.quantity,
+          retailerName: item.retailerName || null,
+          purchaseUrl: item.purchaseUrl || null
+        }))
+      }
+    },
+    include: {
+      items: true
+    }
+  });
 
-  orders.set(order.order_id, order);
-  persistOrders();
-  return order;
+  return toOrderRecord(order);
 };
 
-export const getOrderRecord = (orderId: string) => {
-  return orders.get(orderId) || null;
+export const getOrderRecord = async (orderId: string) => {
+  await ensureDatabaseReady();
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: true
+    }
+  });
+
+  return order ? toOrderRecord(order) : null;
 };
 
-export const getStoredBookingCount = () => bookings.size;
-export const getStoredOrderCount = () => orders.size;
+export const getStoredBookingCount = async () => {
+  await ensureDatabaseReady();
+  return prisma.booking.count();
+};
+export const getStoredOrderCount = async () => {
+  await ensureDatabaseReady();
+  return prisma.order.count();
+};
 
-export const createSavedResultRecord = (
+export const createSavedResultRecord = async (
   input: Omit<SavedResultRecord, 'saved_result_id' | 'created_at'>
 ) => {
-  const savedResult: SavedResultRecord = {
-    ...input,
-    saved_result_id: createRecordId('save'),
-    created_at: new Date().toISOString()
-  };
+  await ensureDatabaseReady();
+  const savedResult = await prisma.savedResult.create({
+    data: {
+      id: createRecordId('save'),
+      userId: input.user_id || null,
+      analysisId: input.analysis_id,
+      title: input.title,
+      primarySeason: input.primary_season,
+      secondarySeason: input.secondary_season || null,
+      confidence: input.confidence || null,
+      paletteJson: stringify(input.palette),
+      summary: input.summary,
+      includePhoto: input.include_photo,
+      createdAt: nowIso()
+    }
+  });
 
-  savedResults.set(savedResult.saved_result_id, savedResult);
-  persistSavedResults();
-  return savedResult;
+  return toSavedResultRecord(savedResult);
 };
 
-export const getSavedResultRecord = (savedResultId: string) => {
-  return savedResults.get(savedResultId) || null;
+export const getSavedResultRecord = async (savedResultId: string) => {
+  await ensureDatabaseReady();
+  const savedResult = await prisma.savedResult.findUnique({
+    where: { id: savedResultId }
+  });
+
+  return savedResult ? toSavedResultRecord(savedResult) : null;
 };
 
-export const createShareRecord = (
+export const listSavedResultRecordsForUser = async (userId: string) => {
+  await ensureDatabaseReady();
+  const savedResults = await prisma.savedResult.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return savedResults.map(toSavedResultRecord);
+};
+
+export const createShareRecord = async (
   input: Omit<ShareRecord, 'share_id' | 'share_url' | 'created_at'>
 ) => {
+  await ensureDatabaseReady();
   const shareId = createRecordId('shr');
-  const share: ShareRecord = {
-    ...input,
-    share_id: shareId,
-    share_url: `/share/${shareId}`,
-    created_at: new Date().toISOString()
-  };
+  const share = await prisma.shareRecord.create({
+    data: {
+      id: shareId,
+      userId: input.user_id || null,
+      analysisId: input.analysis_id,
+      savedResultId: input.saved_result_id || null,
+      visibility: input.visibility,
+      title: input.title,
+      description: input.description,
+      primarySeason: input.primary_season,
+      secondarySeason: input.secondary_season || null,
+      paletteJson: stringify(input.palette),
+      includePhoto: input.include_photo,
+      imageUrl: input.image_url,
+      shareUrl: `/share/${shareId}`,
+      createdAt: nowIso()
+    }
+  });
 
-  shares.set(share.share_id, share);
-  persistShares();
-  return share;
+  return toShareRecord(share);
 };
 
-export const getShareRecord = (shareId: string) => {
-  return shares.get(shareId) || null;
+export const getShareRecord = async (shareId: string) => {
+  await ensureDatabaseReady();
+  const share = await prisma.shareRecord.findFirst({
+    where: {
+      id: shareId,
+      disabledAt: null
+    }
+  });
+
+  return share ? toShareRecord(share) : null;
 };
 
-export const getStoredSavedResultCount = () => savedResults.size;
-export const getStoredShareCount = () => shares.size;
+export const listShareRecordsForUser = async (userId: string) => {
+  await ensureDatabaseReady();
+  const shares = await prisma.shareRecord.findMany({
+    where: {
+      userId,
+      disabledAt: null
+    },
+    orderBy: { createdAt: 'desc' }
+  });
 
-export const createAnalysisFeedbackRecord = (
-  input: Omit<AnalysisFeedback, 'feedback_id' | 'created_at'>
+  return shares.map(toShareRecord);
+};
+
+export const getStoredSavedResultCount = async () => {
+  await ensureDatabaseReady();
+  return prisma.savedResult.count();
+};
+export const getStoredShareCount = async () => {
+  await ensureDatabaseReady();
+  return prisma.shareRecord.count();
+};
+
+export const createAnalysisFeedbackRecord = async (
+  input: Omit<AnalysisFeedback, 'feedback_id' | 'created_at'> & { user_id?: string | null }
 ) => {
-  const feedback: AnalysisFeedback = {
-    ...input,
-    feedback_id: createRecordId('fb'),
-    created_at: new Date().toISOString()
-  };
-  const currentFeedback = analysisFeedback.get(input.analysis_id) || [];
+  await ensureDatabaseReady();
+  const feedback = await prisma.analysisFeedback.create({
+    data: {
+      id: createRecordId('fb'),
+      analysisId: input.analysis_id,
+      userId: input.user_id || null,
+      rating: input.rating,
+      issueTagsJson: stringify(input.issue_tags),
+      userNote: input.user_note || null,
+      createdAt: nowIso()
+    }
+  });
 
-  analysisFeedback.set(input.analysis_id, [...currentFeedback, feedback]);
-  persistAnalysisFeedback();
-
-  return feedback;
+  return toFeedbackRecord(feedback);
 };
 
-export const getAnalysisFeedbackRecords = (analysisId: string) => {
-  return analysisFeedback.get(analysisId) || [];
+export const getAnalysisFeedbackRecords = async (analysisId: string) => {
+  await ensureDatabaseReady();
+  const feedback = await prisma.analysisFeedback.findMany({
+    where: { analysisId },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return feedback.map(toFeedbackRecord);
 };
+
+export const disconnectStorage = async () => prisma.$disconnect();
+
+export { prisma };

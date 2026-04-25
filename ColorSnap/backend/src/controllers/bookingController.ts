@@ -38,7 +38,7 @@ const getOptionalStringList = (body: Record<string, unknown>, key: string, allow
   return values;
 };
 
-export const createBooking = (req: Request, res: Response) => {
+export const createBooking = async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
     const email = ensureRequiredString(body, 'email');
@@ -57,7 +57,8 @@ export const createBooking = (req: Request, res: Response) => {
       throw new ApiError(400, 'INVALID_BOOKING', 'session_type must be video, in_person, or written_review.');
     }
 
-    const booking = createBookingRecord({
+    const booking = await createBookingRecord({
+      user_id: req.user?.id,
       expert_id: ensureRequiredString(body, 'expert_id'),
       expert_name: ensureRequiredString(body, 'expert_name'),
       name: ensureRequiredString(body, 'name'),
@@ -80,12 +81,16 @@ export const createBooking = (req: Request, res: Response) => {
   }
 };
 
-export const fetchBooking = (req: Request, res: Response) => {
+export const fetchBooking = async (req: Request, res: Response) => {
   try {
-    const booking = getBookingRecord(req.params.booking_id);
+    const booking = await getBookingRecord(req.params.booking_id);
 
     if (!booking) {
       throw new ApiError(404, 'BOOKING_NOT_FOUND', 'Booking was not found.');
+    }
+
+    if (booking.user_id && booking.user_id !== req.user?.id) {
+      throw new ApiError(403, 'BOOKING_FORBIDDEN', 'You do not have access to this booking.');
     }
 
     res.json(booking);

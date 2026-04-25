@@ -9,8 +9,8 @@ import { ApiError, toErrorResponse } from '../utils/errors';
 
 const getString = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
-const getCompletedAnalysis = (analysisId: string) => {
-  const analysis = getAnalysis(analysisId);
+const getCompletedAnalysis = async (analysisId: string) => {
+  const analysis = await getAnalysis(analysisId);
 
   if (!analysis) {
     throw new ApiError(404, 'ANALYSIS_NOT_FOUND', 'Analysis was not found.');
@@ -23,7 +23,7 @@ const getCompletedAnalysis = (analysisId: string) => {
   return analysis;
 };
 
-export const createShare = (req: Request, res: Response) => {
+export const createShare = async (req: Request, res: Response) => {
   try {
     const body = req.body as Record<string, unknown>;
     const analysisId = getString(body.analysis_id);
@@ -32,17 +32,26 @@ export const createShare = (req: Request, res: Response) => {
       throw new ApiError(400, 'INVALID_SHARE', 'analysis_id is required.');
     }
 
-    const analysis = getCompletedAnalysis(analysisId);
+    const analysis = await getCompletedAnalysis(analysisId);
     const savedResultId = getString(body.saved_result_id) || undefined;
 
-    if (savedResultId && !getSavedResultRecord(savedResultId)) {
-      throw new ApiError(404, 'SAVED_RESULT_NOT_FOUND', 'Saved result was not found.');
+    if (savedResultId) {
+      const savedResult = await getSavedResultRecord(savedResultId);
+
+      if (!savedResult) {
+        throw new ApiError(404, 'SAVED_RESULT_NOT_FOUND', 'Saved result was not found.');
+      }
+
+      if (savedResult.user_id && savedResult.user_id !== req.user?.id) {
+        throw new ApiError(403, 'SAVED_RESULT_FORBIDDEN', 'You do not have access to this saved result.');
+      }
     }
 
     const primarySeason = analysis.season_result!.primary;
     const summary = analysis.summary!.one_liner;
-    const share = createShareRecord({
+    const share = await createShareRecord({
       analysis_id: analysis.analysis_id,
+      user_id: req.user?.id,
       saved_result_id: savedResultId,
       visibility: 'unlisted',
       title: `My ColorSnap Result: ${primarySeason}`,
@@ -64,9 +73,9 @@ export const createShare = (req: Request, res: Response) => {
   }
 };
 
-export const fetchShare = (req: Request, res: Response) => {
+export const fetchShare = async (req: Request, res: Response) => {
   try {
-    const share = getShareRecord(req.params.share_id);
+    const share = await getShareRecord(req.params.share_id);
 
     if (!share) {
       throw new ApiError(404, 'SHARE_NOT_FOUND', 'Shared result was not found.');

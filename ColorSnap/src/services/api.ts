@@ -2,6 +2,7 @@ import type { AnalysisFeedback, AnalysisResult, CreateAnalysisResponse, ProductD
 import type { CartItem } from '../utils/cart';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+export const AUTH_TOKEN_STORAGE_KEY = 'colorsnapAuthToken';
 
 export type BackendHealth = {
   status: 'ok';
@@ -80,6 +81,18 @@ export type ShareRecord = {
   created_at: string;
 };
 
+export type AuthUser = {
+  id: string;
+  email: string;
+  name?: string;
+  role: string;
+};
+
+export type AuthResponse = {
+  user: AuthUser;
+  token: string;
+};
+
 type ApiErrorBody = {
   error?: {
     code?: string;
@@ -114,6 +127,16 @@ const readJson = async <T>(response: Response): Promise<T> => {
   return body as T;
 };
 
+const getAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const getJsonHeaders = () => ({
+  'Content-Type': 'application/json',
+  ...getAuthHeaders()
+});
+
 export const createAnalysis = async (image: File): Promise<CreateAnalysisResponse> => {
   const formData = new FormData();
   formData.append('image', image);
@@ -121,6 +144,7 @@ export const createAnalysis = async (image: File): Promise<CreateAnalysisRespons
 
   const response = await fetch(`${API_BASE_URL}/api/v1/analyses`, {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: formData
   });
 
@@ -128,7 +152,9 @@ export const createAnalysis = async (image: File): Promise<CreateAnalysisRespons
 };
 
 export const getAnalysis = async (analysisId: string): Promise<AnalysisResult> => {
-  const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${encodeURIComponent(analysisId)}`);
+  const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${encodeURIComponent(analysisId)}`, {
+    headers: getAuthHeaders()
+  });
   return readJson<AnalysisResult>(response);
 };
 
@@ -142,9 +168,7 @@ export const createAnalysisFeedback = async (
 ): Promise<AnalysisFeedback> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/analyses/${encodeURIComponent(analysisId)}/feedback`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: getJsonHeaders(),
     body: JSON.stringify(input)
   });
 
@@ -165,9 +189,7 @@ export const getBackendHealth = async (): Promise<BackendHealth> => {
 export const createBooking = async (booking: BookingRequest): Promise<BookingRecord> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/bookings`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: getJsonHeaders(),
     body: JSON.stringify(booking)
   });
 
@@ -177,9 +199,7 @@ export const createBooking = async (booking: BookingRequest): Promise<BookingRec
 export const createDemoOrder = async (email: string, items: CartItem[]): Promise<OrderRecord> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/orders`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: getJsonHeaders(),
     body: JSON.stringify({
       email,
       items
@@ -195,9 +215,7 @@ export const createSavedResult = async (
 ): Promise<SavedResultRecord> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/saved-results`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: getJsonHeaders(),
     body: JSON.stringify({
       analysis_id: analysisId,
       include_photo: includePhoto
@@ -214,9 +232,7 @@ export const createShare = async (input: {
 }): Promise<ShareRecord> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/shares`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers: getJsonHeaders(),
     body: JSON.stringify(input)
   });
 
@@ -226,4 +242,55 @@ export const createShare = async (input: {
 export const getShare = async (shareId: string): Promise<ShareRecord> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/shares/${encodeURIComponent(shareId)}`);
   return readJson<ShareRecord>(response);
+};
+
+export const registerUser = async (input: {
+  email: string;
+  password: string;
+  name?: string;
+}): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+    method: 'POST',
+    headers: getJsonHeaders(),
+    body: JSON.stringify(input)
+  });
+
+  return readJson<AuthResponse>(response);
+};
+
+export const loginUser = async (input: {
+  email: string;
+  password: string;
+}): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: getJsonHeaders(),
+    body: JSON.stringify(input)
+  });
+
+  return readJson<AuthResponse>(response);
+};
+
+export const getCurrentUser = async (): Promise<{ user: AuthUser }> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+    headers: getAuthHeaders()
+  });
+
+  return readJson<{ user: AuthUser }>(response);
+};
+
+export const getMySavedResults = async (): Promise<{ items: SavedResultRecord[] }> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/me/saved-results`, {
+    headers: getAuthHeaders()
+  });
+
+  return readJson<{ items: SavedResultRecord[] }>(response);
+};
+
+export const getMyShares = async (): Promise<{ items: ShareRecord[] }> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/me/shares`, {
+    headers: getAuthHeaders()
+  });
+
+  return readJson<{ items: ShareRecord[] }>(response);
 };

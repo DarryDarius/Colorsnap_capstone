@@ -3,6 +3,7 @@ import type { PaletteColor, Season } from './analysis';
 export type SavedResultRecord = {
   saved_result_id: string;
   analysis_id: string;
+  user_id?: string;
   title: string;
   primary_season: Season;
   secondary_season: Season | null;
@@ -16,6 +17,7 @@ export type SavedResultRecord = {
 export type ShareRecord = {
   share_id: string;
   analysis_id: string;
+  user_id?: string;
   saved_result_id?: string;
   visibility: 'unlisted';
   title: string;

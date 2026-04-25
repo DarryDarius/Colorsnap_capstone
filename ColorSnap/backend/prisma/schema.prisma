@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         String   @default("user")
+  createdAt    String
+  updatedAt    String
+
+  analyses      Analysis[]
+  feedback      AnalysisFeedback[]
+  savedResults  SavedResult[]
+  shares        ShareRecord[]
+  bookings      Booking[]
+  orders        Order[]
+}
+
+model Analysis {
+  id                         String  @id
+  userId                     String?
+  status                     String
+  source                     String?
+  imageQualityJson           String?
+  qualityAssessmentJson      String?
+  seasonResultJson           String?
+  attributesJson             String?
+  evidenceJson               String?
+  criticJson                 String?
+  summaryJson                String?
+  recommendedPaletteJson     String?
+  beautyRecommendationsJson  String?
+  fashionRecommendationsJson String?
+  productsJson               String?
+  betaFeaturesJson           String?
+  errorJson                  String?
+  createdAt                  String
+  completedAt                String?
+  updatedAt                  String
+
+  user         User?              @relation(fields: [userId], references: [id])
+  feedback     AnalysisFeedback[]
+  savedResults SavedResult[]
+  shares       ShareRecord[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AnalysisFeedback {
+  id             String @id
+  analysisId     String
+  userId         String?
+  rating         Int
+  issueTagsJson  String
+  userNote       String?
+  createdAt      String
+
+  analysis Analysis @relation(fields: [analysisId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id])
+
+  @@index([analysisId])
+  @@index([userId])
+}
+
+model SavedResult {
+  id              String  @id
+  userId          String?
+  analysisId      String
+  title           String
+  primarySeason   String
+  secondarySeason String?
+  confidence      Float?
+  paletteJson     String
+  summary         String
+  includePhoto    Boolean @default(false)
+  createdAt       String
+
+  user     User?    @relation(fields: [userId], references: [id])
+  analysis Analysis @relation(fields: [analysisId], references: [id])
+  shares   ShareRecord[]
+
+  @@index([userId])
+  @@index([analysisId])
+}
+
+model ShareRecord {
+  id              String  @id
+  userId          String?
+  analysisId      String
+  savedResultId   String?
+  visibility      String  @default("unlisted")
+  title           String
+  description     String
+  primarySeason   String
+  secondarySeason String?
+  paletteJson     String
+  includePhoto    Boolean @default(false)
+  imageUrl        String?
+  shareUrl        String
+  disabledAt      String?
+  expiresAt       String?
+  createdAt       String
+
+  user        User?        @relation(fields: [userId], references: [id])
+  analysis    Analysis     @relation(fields: [analysisId], references: [id])
+  savedResult SavedResult? @relation(fields: [savedResultId], references: [id])
+
+  @@index([userId])
+  @@index([analysisId])
+  @@index([savedResultId])
+}
+
+model Booking {
+  id         String  @id
+  userId     String?
+  expertId   String
+  expertName String
+  name       String
+  email      String
+  phone      String?
+  date       String
+  time       String
+  duration   String
+  message    String?
+  status     String
+  createdAt  String
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Order {
+  id        String @id
+  userId    String?
+  status    String
+  demo      Boolean @default(true)
+  email     String
+  total     String
+  currency  String
+  createdAt String
+
+  user  User?       @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id           String  @id
+  orderId      String
+  productId    String
+  slug         String?
+  name         String
+  brand        String?
+  category     String?
+  shade        String?
+  price        String
+  currency     String
+  image        String?
+  quantity     Int
+  retailerName String?
+  purchaseUrl  String?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
