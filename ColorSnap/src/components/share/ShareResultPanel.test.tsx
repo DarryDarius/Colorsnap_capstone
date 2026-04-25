@@ -38,6 +38,8 @@ const analysis: AnalysisResult = {
       score: 88,
       price: '25.00',
       currency: 'USD',
+      best_for: ['Warm Autumn'],
+      retailer_name: 'Sephora',
       badges: ['Warm Autumn']
     }
   ]

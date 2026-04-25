@@ -19,7 +19,7 @@ const processAnalysis = async (analysisId: string, image: Awaited<ReturnType<typ
       primarySeason: modelResult.season_result!.primary,
       secondarySeason: modelResult.season_result!.secondary,
       attributes: modelResult.attributes!,
-      limit: 6
+      limit: 16
     });
 
     completeAnalysis(analysisId, {

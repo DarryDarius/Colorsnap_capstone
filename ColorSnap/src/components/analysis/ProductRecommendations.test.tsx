@@ -20,6 +20,8 @@ const products: ProductRecommendation[] = [
     score: 88,
     price: '25.00',
     currency: 'USD',
+    best_for: ['Soft Autumn'],
+    retailer_name: 'Sephora',
     badges: ['Soft Autumn']
   },
   {
@@ -37,6 +39,8 @@ const products: ProductRecommendation[] = [
     score: 72,
     price: '8.00',
     currency: 'USD',
+    best_for: ['Warm Spring'],
+    retailer_name: 'Ulta Beauty',
     badges: ['Warm Spring']
   }
 ];
@@ -67,7 +71,7 @@ test('filters recommendations by category and price', () => {
   expect(screen.queryByText('Rose Lipstick')).not.toBeInTheDocument();
   expect(screen.getByText('Budget Blush')).toBeInTheDocument();
 
-  fireEvent.change(screen.getByLabelText(/price range/i), { target: { value: 'under-10' } });
+  fireEvent.change(screen.getByLabelText(/price range/i), { target: { value: 'under-25' } });
   expect(screen.getByText('Budget Blush')).toBeInTheDocument();
 });
 

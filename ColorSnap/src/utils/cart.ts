@@ -106,7 +106,7 @@ const getProductPurchaseUrl = (product: CartProduct) => {
 };
 
 const getProductRetailerName = (product: CartProduct) => {
-  return 'retailer' in product ? product.retailer.name : undefined;
+  return 'retailer' in product ? product.retailer.name : product.retailer_name;
 };
 
 const getProductReason = (product: CartProduct) => {

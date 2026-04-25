@@ -6,6 +6,8 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
 export type BackendHealth = {
   status: 'ok';
   ai_mode: 'mock' | 'openai';
+  ai_status?: 'ready' | 'missing_config';
+  openai_configured?: boolean;
   timestamp: string;
 };
 
@@ -18,6 +20,10 @@ export type BookingRequest = {
   date: string;
   time: string;
   duration: '30' | '45' | '60';
+  timezone?: string;
+  session_type?: 'video' | 'in_person' | 'written_review';
+  add_ons?: Array<'wardrobe_review' | 'makeup_audit'>;
+  estimated_price?: string;
   message?: string;
 };
 
@@ -81,12 +87,28 @@ type ApiErrorBody = {
   };
 };
 
+export class ApiClientError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'ApiClientError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 const readJson = async <T>(response: Response): Promise<T> => {
   const body = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     const errorBody = body as ApiErrorBody;
-    throw new Error(errorBody.error?.message || `Request failed with status ${response.status}.`);
+    throw new ApiClientError(
+      errorBody.error?.message || `Request failed with status ${response.status}.`,
+      response.status,
+      errorBody.error?.code
+    );
   }
 
   return body as T;

@@ -7,7 +7,7 @@ const PageShell = styled.div`
 `;
 
 const Hero = styled.section`
-  min-height: calc(100vh - 72px);
+  min-height: clamp(560px, calc(100vh - 128px), 760px);
   position: relative;
   display: flex;
   align-items: center;

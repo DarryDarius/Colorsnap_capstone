@@ -1,6 +1,8 @@
 import type { CurrencyCode, ProductCategory } from './analysis';
 
 export type BookingDuration = '30' | '45' | '60';
+export type BookingSessionType = 'video' | 'in_person' | 'written_review';
+export type BookingAddOn = 'wardrobe_review' | 'makeup_audit';
 
 export type BookingRecord = {
   booking_id: string;
@@ -13,6 +15,10 @@ export type BookingRecord = {
   date: string;
   time: string;
   duration: BookingDuration;
+  timezone?: string;
+  session_type?: BookingSessionType;
+  add_ons?: BookingAddOn[];
+  estimated_price?: string;
   message?: string;
   created_at: string;
 };

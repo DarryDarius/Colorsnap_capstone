@@ -342,6 +342,17 @@ type OpenAiResponseBody = {
 
 export const getAiMode = () => process.env.MOCK_AI !== 'false' ? 'mock' : 'openai';
 
+export const getAiRuntimeStatus = () => {
+  const mode = getAiMode();
+  const hasOpenAiApiKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+
+  return {
+    mode,
+    status: mode === 'mock' || hasOpenAiApiKey ? 'ready' : 'missing_config',
+    openai_configured: hasOpenAiApiKey
+  };
+};
+
 const isMockAiEnabled = () => getAiMode() === 'mock';
 
 const getOpenAiApiKey = () => {

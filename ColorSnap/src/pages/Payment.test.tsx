@@ -35,6 +35,6 @@ test('renders demo checkout notice and total', () => {
   );
 
   expect(screen.getByText(/demo checkout - no real payment will be processed/i)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /pay \$50.00/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /pay \$54.13/i })).toBeInTheDocument();
   expect(screen.getByText('Soft Pinch Liquid Blush')).toBeInTheDocument();
 });

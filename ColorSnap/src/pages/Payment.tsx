@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { createDemoOrder } from '../services/api';
 import type { CartItem } from '../utils/cart';
-import { clearCartItems, getCartTotal, readCartItems } from '../utils/cart';
+import { clearCartItems, readCartItems } from '../utils/cart';
+import { calculateCheckoutQuote, formatMoney, type CheckoutQuote, type ShippingMethod } from '../utils/checkout';
 import { formatLabel } from '../utils/formatters';
 
 const PageShell = styled.section`
@@ -47,6 +48,22 @@ const Description = styled.p`
   color: var(--text-secondary);
   font-size: var(--font-lg);
   line-height: 1.7;
+`;
+
+const ContextStrip = styled.div`
+  background: var(--surface-sage);
+  border: 1px solid #DDE8DA;
+  border-radius: var(--radius-lg);
+  color: var(--accent-olive);
+  line-height: 1.6;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+`;
+
+const ContextTitle = styled.strong`
+  color: var(--accent-olive);
+  display: block;
+  margin-bottom: var(--space-1);
 `;
 
 const CheckoutLayout = styled.div`
@@ -115,6 +132,31 @@ const Input = styled.input`
   &:focus {
     border-color: var(--brand-primary);
   }
+`;
+
+const Select = styled.select`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--font-md);
+  padding: 0.85rem 1rem;
+
+  &:focus {
+    border-color: var(--brand-primary);
+  }
+`;
+
+const CheckboxLabel = styled.label`
+  align-items: center;
+  color: var(--text-secondary);
+  display: flex;
+  gap: var(--space-2);
+  font-weight: 700;
+`;
+
+const Checkbox = styled.input`
+  accent-color: var(--brand-primary);
 `;
 
 const FieldRow = styled.div`
@@ -206,6 +248,14 @@ const TotalLine = styled.div`
   justify-content: space-between;
   margin-top: var(--space-5);
   padding-top: var(--space-4);
+`;
+
+const SummaryLine = styled.div`
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--space-3);
 `;
 
 const EmptyPanel = styled(Panel)`
@@ -305,14 +355,21 @@ const formatExpiry = (value: string) => {
 const Payment: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [confirmedItems, setConfirmedItems] = useState<CartItem[]>([]);
-  const [confirmedTotal, setConfirmedTotal] = useState(0);
+  const [confirmedQuote, setConfirmedQuote] = useState<CheckoutQuote | null>(null);
+  const [confirmedShippingMethod, setConfirmedShippingMethod] = useState<ShippingMethod>('standard');
   const [formData, setFormData] = useState({
     cardNumber: '',
     cardName: '',
     expiry: '',
     cvv: '',
-    email: ''
+    email: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: ''
   });
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('standard');
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -322,7 +379,8 @@ const Payment: React.FC = () => {
     setCartItems(readCartItems());
   }, []);
 
-  const total = getCartTotal(cartItems);
+  const promoCode = localStorage.getItem('checkoutPromoCode') || '';
+  const quote = calculateCheckoutQuote(cartItems, promoCode, shippingMethod);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -359,7 +417,8 @@ const Payment: React.FC = () => {
 
     window.setTimeout(() => {
       setConfirmedItems(cartItems);
-      setConfirmedTotal(total);
+      setConfirmedQuote(quote);
+      setConfirmedShippingMethod(shippingMethod);
       setIsProcessing(false);
       setIsSuccess(true);
       clearCartItems();
@@ -369,7 +428,11 @@ const Payment: React.FC = () => {
         cardName: '',
         expiry: '',
         cvv: '',
-        email: ''
+        email: '',
+        address: '',
+        city: '',
+        state: '',
+        zip: ''
       });
     }, 1200);
   };
@@ -395,6 +458,18 @@ const Payment: React.FC = () => {
               </ConfirmationNote>
             )}
             <ConfirmationGrid>
+              <ConfirmationItem>
+                <span>Confirmation number</span>
+                <strong>{orderId || 'LOCAL-DEMO-ORDER'}</strong>
+              </ConfirmationItem>
+              <ConfirmationItem>
+                <span>Shipping method</span>
+                <strong>{confirmedShippingMethod === 'express' ? 'Express demo shipping' : 'Standard demo shipping'}</strong>
+              </ConfirmationItem>
+              <ConfirmationItem>
+                <span>Estimated delivery</span>
+                <strong>{confirmedShippingMethod === 'express' ? '2-3 demo business days' : '5-7 demo business days'}</strong>
+              </ConfirmationItem>
               {confirmedItems.map((item) => (
                 <ConfirmationItem key={item.id}>
                   <span>{item.name} x {item.quantity}</span>
@@ -403,7 +478,7 @@ const Payment: React.FC = () => {
               ))}
               <ConfirmationItem>
                 <span>Total</span>
-                <strong>${confirmedTotal.toFixed(2)}</strong>
+                <strong>{formatMoney(confirmedQuote?.total || 0)}</strong>
               </ConfirmationItem>
             </ConfirmationGrid>
             <ActionRow>
@@ -439,17 +514,22 @@ const Payment: React.FC = () => {
       <Container>
         <HeaderBlock>
           <Eyebrow>Demo checkout</Eyebrow>
-          <Title>Payment</Title>
+          <Title>Demo Checkout</Title>
           <Description>
             Complete the capstone checkout flow while keeping real purchases available through retailer links.
           </Description>
         </HeaderBlock>
 
+        <ContextStrip>
+          <ContextTitle>Checkout is part of the demo product loop.</ContextTitle>
+          No real payment will be processed; the order summary is saved locally and, when available, mirrored to the demo backend.
+        </ContextStrip>
+
         <CheckoutLayout>
           <Panel>
-            <PanelTitle>Contact and payment</PanelTitle>
+            <PanelTitle>Contact, shipping, and payment</PanelTitle>
             <DemoNotice>
-              Demo checkout - no real payment will be processed. Use any valid-looking test values to complete the flow.
+              Demo checkout - no real payment will be processed. Test card: 4242 4242 4242 4242, any future expiry, any CVV.
             </DemoNotice>
             <PaymentForm onSubmit={handleSubmit}>
               <FieldGroup>
@@ -463,6 +543,77 @@ const Payment: React.FC = () => {
                   required
                 />
               </FieldGroup>
+              <FieldGroup>
+                <Label htmlFor="address">Shipping Address</Label>
+                <Input
+                  type="text"
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="123 Color Studio Ave"
+                  required
+                />
+              </FieldGroup>
+              <FieldRow>
+                <FieldGroup>
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    type="text"
+                    id="city"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </FieldGroup>
+                <FieldGroup>
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    type="text"
+                    id="state"
+                    name="state"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    maxLength={2}
+                    placeholder="IL"
+                    required
+                  />
+                </FieldGroup>
+              </FieldRow>
+              <FieldRow>
+                <FieldGroup>
+                  <Label htmlFor="zip">ZIP Code</Label>
+                  <Input
+                    type="text"
+                    id="zip"
+                    name="zip"
+                    inputMode="numeric"
+                    value={formData.zip}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </FieldGroup>
+                <FieldGroup>
+                  <Label htmlFor="shippingMethod">Shipping Method</Label>
+                  <Select
+                    id="shippingMethod"
+                    value={shippingMethod}
+                    onChange={(event) => setShippingMethod(event.target.value as ShippingMethod)}
+                  >
+                    <option value="standard">Standard - {quote.shipping === 0 ? 'Free' : formatMoney(quote.shipping)}</option>
+                    <option value="express">Express - $14.95</option>
+                  </Select>
+                </FieldGroup>
+              </FieldRow>
+              <CheckboxLabel>
+                <Checkbox
+                  type="checkbox"
+                  checked={billingSameAsShipping}
+                  onChange={(event) => setBillingSameAsShipping(event.target.checked)}
+                />
+                Billing address same as shipping
+              </CheckboxLabel>
               <FieldGroup>
                 <Label htmlFor="cardName">Cardholder Name</Label>
                 <Input
@@ -516,7 +667,7 @@ const Payment: React.FC = () => {
                 </FieldGroup>
               </FieldRow>
               <SubmitButton type="submit" disabled={isProcessing}>
-                {isProcessing ? 'Processing Demo Checkout...' : `Pay $${total.toFixed(2)}`}
+                {isProcessing ? 'Processing Demo Checkout...' : `Pay ${formatMoney(quote.total)}`}
               </SubmitButton>
             </PaymentForm>
           </Panel>
@@ -541,9 +692,23 @@ const Payment: React.FC = () => {
                 </SummaryItem>
               ))}
             </SummaryList>
+            {quote.discount > 0 && (
+              <SummaryLine>
+                <span>Promo discount</span>
+                <span>-{formatMoney(quote.discount)}</span>
+              </SummaryLine>
+            )}
+            <SummaryLine>
+              <span>Shipping</span>
+              <span>{quote.shipping === 0 ? 'Free' : formatMoney(quote.shipping)}</span>
+            </SummaryLine>
+            <SummaryLine>
+              <span>Estimated tax</span>
+              <span>{formatMoney(quote.tax)}</span>
+            </SummaryLine>
             <TotalLine>
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{formatMoney(quote.total)}</span>
             </TotalLine>
           </Summary>
         </CheckoutLayout>

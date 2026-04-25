@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { createAnalysis, getBackendHealth } from '../services/api';
+import { ApiClientError, createAnalysis, getBackendHealth } from '../services/api';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -104,15 +104,55 @@ const PanelBadge = styled.span`
   padding: var(--space-2) var(--space-3);
 `;
 
-const ServiceNotice = styled.div<{ $tone?: 'success' | 'warning' }>`
-  background: ${(props) => (props.$tone === 'warning' ? '#FFF8EC' : 'var(--surface-sage)')};
-  border: 1px solid ${(props) => (props.$tone === 'warning' ? '#E8D5B8' : '#DDE8DA')};
+const ServiceNotice = styled.div<{ $tone?: 'success' | 'warning' | 'danger' }>`
+  background: ${(props) => (
+    props.$tone === 'danger'
+      ? '#FFF4F2'
+      : props.$tone === 'warning'
+        ? '#FFF8EC'
+        : 'var(--surface-sage)'
+  )};
+  border: 1px solid ${(props) => (
+    props.$tone === 'danger'
+      ? '#F0C9C3'
+      : props.$tone === 'warning'
+        ? '#E8D5B8'
+        : '#DDE8DA'
+  )};
   border-radius: var(--radius-md);
-  color: ${(props) => (props.$tone === 'warning' ? 'var(--warning)' : 'var(--accent-olive)')};
+  color: ${(props) => (
+    props.$tone === 'danger'
+      ? 'var(--error)'
+      : props.$tone === 'warning'
+        ? 'var(--warning)'
+        : 'var(--accent-olive)'
+  )};
   font-weight: 600;
   line-height: 1.6;
   margin-bottom: var(--space-5);
   padding: var(--space-4);
+`;
+
+const NoticeTitle = styled.strong`
+  color: inherit;
+  display: block;
+  margin-bottom: var(--space-1);
+`;
+
+const NoticeAction = styled.button`
+  background: var(--surface);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-md);
+  color: inherit;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-top: var(--space-3);
+  padding: 0.65rem 0.8rem;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.68);
+    transform: translateY(-1px);
+  }
 `;
 
 const FileInput = styled.input`
@@ -355,8 +395,33 @@ const StepDot = styled.span`
 `;
 
 type AiMode = 'mock' | 'openai' | 'offline' | 'unknown';
+type AiStatus = 'ready' | 'missing_config' | 'unknown';
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+const getFriendlyAnalysisStartError = (error: unknown) => {
+  if (error instanceof ApiClientError) {
+    if (error.code === 'OPENAI_CONFIG_MISSING') {
+      return 'Live OpenAI mode is selected, but OPENAI_API_KEY is missing in backend/.env. Add the key or switch MOCK_AI=true for demo mode.';
+    }
+
+    if (error.code === 'FILE_TOO_LARGE') {
+      return 'That image is larger than the 5 MB backend limit. Try a smaller JPG, PNG, or WEBP file.';
+    }
+
+    if (error.code === 'INVALID_IMAGE' || error.code === 'INVALID_REQUEST' || error.code === 'MISSING_IMAGE') {
+      return error.message;
+    }
+
+    return `${error.message} (${error.code || `HTTP ${error.status}`})`;
+  }
+
+  if (error instanceof TypeError) {
+    return 'Could not reach the analysis backend. Start it with npm run backend:dev, then retry the service check.';
+  }
+
+  return 'Unable to start analysis. Please try again.';
+};
 
 const formatFileSize = (size: number) => {
   if (size < 1024 * 1024) {
@@ -373,30 +438,40 @@ const Analysis: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiMode, setAiMode] = useState<AiMode>('unknown');
+  const [aiStatus, setAiStatus] = useState<AiStatus>('unknown');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const refreshBackendHealth = useCallback(async () => {
+    try {
+      const health = await getBackendHealth();
+      setAiMode(health.ai_mode);
+      setAiStatus(health.ai_status || 'ready');
+      setError(null);
+    } catch {
+      setAiMode('offline');
+      setAiStatus('unknown');
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
 
-    getBackendHealth()
-      .then((health) => {
-        if (isMounted) {
-          setAiMode(health.ai_mode);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setAiMode('offline');
-        }
-      });
+    const checkHealth = async () => {
+      if (isMounted) {
+        await refreshBackendHealth();
+      }
+    };
 
+    void checkHealth();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [refreshBackendHealth]);
 
-  const modeLabel = aiMode === 'openai'
+  const modeLabel = aiMode === 'openai' && aiStatus === 'missing_config'
+    ? 'OpenAI key missing'
+    : aiMode === 'openai'
     ? 'Live OpenAI analysis'
     : aiMode === 'mock'
       ? 'Demo analysis mode'
@@ -413,6 +488,8 @@ const Analysis: React.FC = () => {
         : 'Analysis flow';
 
   const isServiceOffline = aiMode === 'offline';
+  const isOpenAiMissingConfig = aiMode === 'openai' && aiStatus === 'missing_config';
+  const isAnalysisUnavailable = isServiceOffline || isOpenAiMissingConfig;
 
   const setFile = (file: File) => {
     if (!allowedTypes.has(file.type)) {
@@ -447,7 +524,12 @@ const Analysis: React.FC = () => {
   const handleAnalyze = async () => {
     if (!selectedFile) return;
     if (isServiceOffline) {
-      setError('Analysis service is offline. Start the backend with npm.cmd run backend:dev and try again.');
+      setError('Analysis service is offline. Start the backend with npm run backend:dev and try again.');
+      return;
+    }
+
+    if (isOpenAiMissingConfig) {
+      setError('Live OpenAI mode is selected, but OPENAI_API_KEY is missing in backend/.env. Add the key or switch MOCK_AI=true for demo mode.');
       return;
     }
 
@@ -459,7 +541,7 @@ const Analysis: React.FC = () => {
       localStorage.setItem('lastAnalysisId', response.analysis_id);
       navigate(`/result?id=${encodeURIComponent(response.analysis_id)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to start analysis.');
+      setError(getFriendlyAnalysisStartError(err));
     } finally {
       setIsAnalyzing(false);
     }
@@ -500,8 +582,18 @@ const Analysis: React.FC = () => {
           </PanelHeader>
 
           {aiMode === 'offline' && (
+            <ServiceNotice $tone="danger">
+              <NoticeTitle>Analysis backend is offline.</NoticeTitle>
+              Start the backend with npm run backend:dev before starting a new analysis.
+              <NoticeAction type="button" onClick={refreshBackendHealth}>Retry Service Check</NoticeAction>
+            </ServiceNotice>
+          )}
+
+          {isOpenAiMissingConfig && (
             <ServiceNotice $tone="warning">
-              Analysis service is offline. Start the backend with npm.cmd run backend:dev before starting a new analysis.
+              <NoticeTitle>OpenAI live mode needs configuration.</NoticeTitle>
+              MOCK_AI=false is active, but OPENAI_API_KEY is not set in backend/.env. Add the key or switch to MOCK_AI=true for a stable demo.
+              <NoticeAction type="button" onClick={refreshBackendHealth}>Retry Config Check</NoticeAction>
             </ServiceNotice>
           )}
 
@@ -570,7 +662,7 @@ const Analysis: React.FC = () => {
           <AnalyzeActions>
             <Button
               type="button"
-              disabled={!selectedFile || isAnalyzing || isServiceOffline}
+              disabled={!selectedFile || isAnalyzing || isAnalysisUnavailable}
               onClick={handleAnalyze}
             >
               {isAnalyzing ? 'Starting Analysis...' : 'Start Analysis'}

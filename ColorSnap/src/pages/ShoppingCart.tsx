@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import type { CartItem } from '../utils/cart';
-import { clearCartItems, getCartTotal, readCartItems, writeCartItems } from '../utils/cart';
+import { clearCartItems, readCartItems, writeCartItems } from '../utils/cart';
+import { DEMO_PROMO_CODE, calculateCheckoutQuote, formatMoney } from '../utils/checkout';
 import { formatLabel, isRealExternalUrl } from '../utils/formatters';
 
 const PageShell = styled.section`
@@ -46,6 +47,32 @@ const Description = styled.p`
   color: var(--text-secondary);
   font-size: var(--font-lg);
   line-height: 1.7;
+`;
+
+const ContextStrip = styled.div`
+  background: var(--surface-sage);
+  border: 1px solid #DDE8DA;
+  border-radius: var(--radius-lg);
+  color: var(--accent-olive);
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: 1fr auto;
+  line-height: 1.6;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ContextTitle = styled.strong`
+  color: var(--accent-olive);
+`;
+
+const ContextMeta = styled.span`
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
 `;
 
 const CartLayout = styled.div`
@@ -207,6 +234,18 @@ const RemoveButton = styled.button`
   font-weight: 800;
 `;
 
+const SourceBadge = styled.span`
+  background: var(--surface-sage);
+  border: 1px solid #DDE8DA;
+  border-radius: var(--radius-md);
+  color: var(--accent-olive);
+  display: inline-flex;
+  font-size: var(--font-xs);
+  font-weight: 800;
+  padding: 0.35rem 0.55rem;
+  width: fit-content;
+`;
+
 const SummaryCard = styled.aside`
   background: var(--surface);
   border: 1px solid var(--border-soft);
@@ -247,6 +286,54 @@ const SummaryNote = styled.p`
   font-size: var(--font-sm);
   line-height: 1.6;
   margin: var(--space-4) 0;
+`;
+
+const PromoBox = styled.div`
+  border-bottom: 1px solid var(--border-soft);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+`;
+
+const PromoLabel = styled.label`
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  font-weight: 800;
+`;
+
+const PromoInputRow = styled.div`
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: minmax(0, 1fr) auto;
+`;
+
+const PromoInput = styled.input`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  min-width: 0;
+  padding: 0.7rem 0.8rem;
+`;
+
+const PromoButton = styled.button`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: 800;
+  padding: 0.7rem 0.8rem;
+
+  &:hover {
+    background: var(--brand-primary-pale);
+    border-color: var(--brand-primary-soft);
+  }
+`;
+
+const PromoStatus = styled.p<{ $applied?: boolean }>`
+  color: ${(props) => (props.$applied ? 'var(--success)' : 'var(--text-muted)')};
+  font-size: var(--font-sm);
+  margin: 0;
 `;
 
 const ButtonStack = styled.div`
@@ -342,11 +429,14 @@ const EmptySecondaryLink = styled(Link)`
 const ShoppingCart: React.FC = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [lastAnalysisId, setLastAnalysisId] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromoCode, setAppliedPromoCode] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     setCartItems(readCartItems());
     setLastAnalysisId(localStorage.getItem('lastAnalysisId'));
+    setAppliedPromoCode(localStorage.getItem('checkoutPromoCode') || '');
   }, []);
 
   const syncCart = (items: CartItem[]) => {
@@ -377,8 +467,19 @@ const ShoppingCart: React.FC = () => {
     }
   };
 
-  const subtotal = getCartTotal(cartItems);
   const itemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+  const quote = calculateCheckoutQuote(cartItems, appliedPromoCode);
+
+  const applyPromo = () => {
+    const normalizedCode = promoCode.trim().toUpperCase();
+    setAppliedPromoCode(normalizedCode);
+    localStorage.setItem('checkoutPromoCode', normalizedCode);
+  };
+
+  const handleCheckout = () => {
+    localStorage.setItem('checkoutPromoCode', appliedPromoCode);
+    navigate('/payment');
+  };
 
   return (
     <PageShell>
@@ -390,6 +491,15 @@ const ShoppingCart: React.FC = () => {
             Review the color-matched products you saved, adjust quantities, or purchase through trusted retailers.
           </Description>
         </HeaderBlock>
+
+        <ContextStrip>
+          <div>
+            <ContextTitle>Personalized recommendations stay connected to your color report.</ContextTitle>
+            <br />
+            Cart items keep their shade, category, and match reason so checkout feels like part of the same consultation flow.
+          </div>
+          <ContextMeta>{itemCount} saved item{itemCount === 1 ? '' : 's'}</ContextMeta>
+        </ContextStrip>
 
         {cartItems.length === 0 ? (
           <EmptyState>
@@ -427,6 +537,7 @@ const ShoppingCart: React.FC = () => {
                           .filter(Boolean)
                           .join(' | ')}
                       </ItemMeta>
+                      {item.analysisId && <SourceBadge>Saved from analysis result</SourceBadge>}
                       <MatchReason>{item.matchReason || item.description}</MatchReason>
                       <ItemActions>
                         {detailsUrl && <TextLink to={detailsUrl}>View Details</TextLink>}
@@ -465,18 +576,49 @@ const ShoppingCart: React.FC = () => {
               </SummaryLine>
               <SummaryLine>
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{formatMoney(quote.subtotal)}</span>
+              </SummaryLine>
+              <PromoBox>
+                <PromoLabel htmlFor="promoCode">Promo code</PromoLabel>
+                <PromoInputRow>
+                  <PromoInput
+                    id="promoCode"
+                    value={promoCode}
+                    onChange={(event) => setPromoCode(event.target.value)}
+                    placeholder={DEMO_PROMO_CODE}
+                  />
+                  <PromoButton type="button" onClick={applyPromo}>Apply</PromoButton>
+                </PromoInputRow>
+                <PromoStatus $applied={quote.promoApplied}>
+                  {quote.promoApplied
+                    ? `${DEMO_PROMO_CODE} applied for 10% off.`
+                    : `Demo code: ${DEMO_PROMO_CODE}`}
+                </PromoStatus>
+              </PromoBox>
+              {quote.discount > 0 && (
+                <SummaryLine>
+                  <span>Discount</span>
+                  <span>-{formatMoney(quote.discount)}</span>
+                </SummaryLine>
+              )}
+              <SummaryLine>
+                <span>Estimated shipping</span>
+                <span>{quote.shipping === 0 ? 'Free' : formatMoney(quote.shipping)}</span>
+              </SummaryLine>
+              <SummaryLine>
+                <span>Estimated tax</span>
+                <span>{formatMoney(quote.tax)}</span>
               </SummaryLine>
               <TotalLine>
                 <span>Estimated total</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{formatMoney(quote.total)}</span>
               </TotalLine>
               <SummaryNote>
                 ColorSnap helps you build a personalized cart. Purchases are completed through trusted retailers,
                 while checkout remains a demo flow for this capstone.
               </SummaryNote>
               <ButtonStack>
-                <PrimaryButton type="button" onClick={() => navigate('/payment')}>
+                <PrimaryButton type="button" onClick={handleCheckout}>
                   Continue to Demo Checkout
                 </PrimaryButton>
                 <SecondaryButton type="button" onClick={() => navigate('/analysis')}>

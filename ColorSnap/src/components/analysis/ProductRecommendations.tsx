@@ -49,10 +49,14 @@ const RecommendationIntro = styled.div`
 const ControlsGrid = styled.div`
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: var(--space-6);
 
-  @media (max-width: 820px) {
+  @media (max-width: 1080px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -161,6 +165,32 @@ const ProductInfo = styled.p`
   }
 `;
 
+const MetaGrid = styled.div`
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const BestForList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+`;
+
+const BestForPill = styled.span`
+  background: var(--surface-sage);
+  border: 1px solid #DDE8DA;
+  border-radius: var(--radius-md);
+  color: var(--accent-olive);
+  font-size: var(--font-xs);
+  font-weight: 800;
+  padding: 0.35rem 0.55rem;
+`;
+
 const ActionRow = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -234,7 +264,7 @@ type Props = {
   analysisId?: string | null;
 };
 
-type PriceFilter = 'all' | 'under-10' | '10-25' | '25-plus';
+type PriceFilter = 'all' | 'under-25' | '25-50' | '50-plus';
 type SortMode = 'best-match' | 'price-low' | 'price-high';
 
 const getRetailerName = (purchaseUrl?: string) => {
@@ -262,15 +292,15 @@ const matchesPriceFilter = (product: ProductRecommendation, priceFilter: PriceFi
     return true;
   }
 
-  if (priceFilter === 'under-10') {
-    return price < 10;
+  if (priceFilter === 'under-25') {
+    return price < 25;
   }
 
-  if (priceFilter === '10-25') {
-    return price >= 10 && price <= 25;
+  if (priceFilter === '25-50') {
+    return price >= 25 && price <= 50;
   }
 
-  return price > 25;
+  return price > 50;
 };
 
 const ProductRecommendations: React.FC<Props> = ({
@@ -282,17 +312,29 @@ const ProductRecommendations: React.FC<Props> = ({
 }) => {
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
   const [retailerFilter, setRetailerFilter] = useState('all');
+  const [finishFilter, setFinishFilter] = useState('all');
+  const [intensityFilter, setIntensityFilter] = useState('all');
   const [sortMode, setSortMode] = useState<SortMode>('best-match');
   const categories = Array.from(new Set(products.map((product) => product.category)));
   const retailers = useMemo(
-    () => Array.from(new Set(products.map((product) => getRetailerName(product.purchase_url)))).sort(),
+    () => Array.from(new Set(products.map((product) => product.retailer_name || getRetailerName(product.purchase_url)))).sort(),
+    [products]
+  );
+  const finishes = useMemo(
+    () => Array.from(new Set(products.map((product) => product.finish).filter((finish): finish is NonNullable<typeof finish> => Boolean(finish)))).sort(),
+    [products]
+  );
+  const intensities = useMemo(
+    () => Array.from(new Set(products.map((product) => product.intensity).filter((intensity): intensity is NonNullable<typeof intensity> => Boolean(intensity)))).sort(),
     [products]
   );
   const filteredProducts = useMemo(() => {
     const nextProducts = products
       .filter((product) => activeFilter === 'all' || product.category === activeFilter)
       .filter((product) => matchesPriceFilter(product, priceFilter))
-      .filter((product) => retailerFilter === 'all' || getRetailerName(product.purchase_url) === retailerFilter);
+      .filter((product) => retailerFilter === 'all' || (product.retailer_name || getRetailerName(product.purchase_url)) === retailerFilter)
+      .filter((product) => finishFilter === 'all' || product.finish === finishFilter)
+      .filter((product) => intensityFilter === 'all' || product.intensity === intensityFilter);
 
     return [...nextProducts].sort((first, second) => {
       if (sortMode === 'price-low') {
@@ -305,13 +347,13 @@ const ProductRecommendations: React.FC<Props> = ({
 
       return second.score - first.score;
     });
-  }, [activeFilter, priceFilter, products, retailerFilter, sortMode]);
+  }, [activeFilter, finishFilter, intensityFilter, priceFilter, products, retailerFilter, sortMode]);
 
   return (
     <>
       <RecommendationIntro>
         <strong>Best Match</strong> ranks products by palette match, undertone fit, saturation, brightness,
-        and contrast support. Use filters to narrow the list by category, price, or retailer.
+        and contrast support. Use filters to narrow the list by category, price, retailer, finish, or intensity.
       </RecommendationIntro>
 
       <FilterBar>
@@ -334,9 +376,9 @@ const ProductRecommendations: React.FC<Props> = ({
           Price range
           <Select value={priceFilter} onChange={(event) => setPriceFilter(event.target.value as PriceFilter)}>
             <option value="all">All prices</option>
-            <option value="under-10">Under $10</option>
-            <option value="10-25">$10-$25</option>
-            <option value="25-plus">$25+</option>
+            <option value="under-25">Under $25</option>
+            <option value="25-50">$25-$50</option>
+            <option value="50-plus">$50+</option>
           </Select>
         </ControlGroup>
         <ControlGroup>
@@ -345,6 +387,24 @@ const ProductRecommendations: React.FC<Props> = ({
             <option value="all">All retailers</option>
             {retailers.map((retailer) => (
               <option key={retailer} value={retailer}>{retailer}</option>
+            ))}
+          </Select>
+        </ControlGroup>
+        <ControlGroup>
+          Finish
+          <Select value={finishFilter} onChange={(event) => setFinishFilter(event.target.value)}>
+            <option value="all">All finishes</option>
+            {finishes.map((finish) => (
+              <option key={finish} value={finish}>{formatLabel(finish)}</option>
+            ))}
+          </Select>
+        </ControlGroup>
+        <ControlGroup>
+          Intensity
+          <Select value={intensityFilter} onChange={(event) => setIntensityFilter(event.target.value)}>
+            <option value="all">All intensities</option>
+            {intensities.map((intensity) => (
+              <option key={intensity} value={intensity}>{formatLabel(intensity)}</option>
             ))}
           </Select>
         </ControlGroup>
@@ -360,7 +420,7 @@ const ProductRecommendations: React.FC<Props> = ({
 
       {filteredProducts.length === 0 && (
         <EmptyState>
-          No products match these filters. Try broadening the category, price, or retailer selection.
+          No products match these filters. Try broadening the category, price, retailer, finish, or intensity selection.
         </EmptyState>
       )}
 
@@ -375,11 +435,22 @@ const ProductRecommendations: React.FC<Props> = ({
                 <Badge key={badge}>{badge}</Badge>
               ))}
             </BadgeRow>
-            <ProductInfo><strong>Shade:</strong> {product.shade}</ProductInfo>
-            <ProductInfo><strong>Category:</strong> {formatLabel(product.category)}</ProductInfo>
-            <ProductInfo><strong>Retailer:</strong> {getRetailerName(product.purchase_url)}</ProductInfo>
-            <ProductInfo><strong>Match Score:</strong> {product.score}</ProductInfo>
-            <ProductInfo><strong>Price:</strong> ${product.price}</ProductInfo>
+            <MetaGrid>
+              <ProductInfo><strong>Shade:</strong> {product.shade}</ProductInfo>
+              <ProductInfo><strong>Category:</strong> {formatLabel(product.category)}</ProductInfo>
+              <ProductInfo><strong>Retailer:</strong> {product.retailer_name || getRetailerName(product.purchase_url)}</ProductInfo>
+              <ProductInfo><strong>Match Score:</strong> {product.score}</ProductInfo>
+              <ProductInfo><strong>Finish:</strong> {product.finish ? formatLabel(product.finish) : 'Any'}</ProductInfo>
+              <ProductInfo><strong>Intensity:</strong> {product.intensity ? formatLabel(product.intensity) : 'Any'}</ProductInfo>
+              <ProductInfo><strong>Price:</strong> ${product.price}</ProductInfo>
+            </MetaGrid>
+            {product.best_for?.length > 0 && (
+              <BestForList aria-label={`${product.name} best for`}>
+                {product.best_for.map((item) => (
+                  <BestForPill key={item}>{item}</BestForPill>
+                ))}
+              </BestForList>
+            )}
             <ProductInfo>{product.short_description || `${product.shade} selected for your palette.`}</ProductInfo>
             <ProductInfo>{product.reason}</ProductInfo>
             <ActionRow>

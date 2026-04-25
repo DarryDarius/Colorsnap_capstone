@@ -76,6 +76,13 @@ const buildReason = (product: Product, input: RecommendationInput) => {
   return `${product.shade} ${parts.join(', ')}.`;
 };
 
+const buildBestFor = (product: Product) => [
+  ...product.seasons.slice(0, 2),
+  ...product.undertones.map((undertone) => `${titleCase(undertone)} Undertone`),
+  product.finish ? `${titleCase(product.finish)} Finish` : null,
+  product.intensity ? `${titleCase(product.intensity)} Intensity` : null
+].filter((item): item is string => Boolean(item)).slice(0, 5);
+
 const scoreProduct = (product: Product, input: RecommendationInput) => {
   const seasonMatch = product.seasons.includes(input.primarySeason)
     ? 1
@@ -107,6 +114,8 @@ const toRecommendation = (product: Product, input: RecommendationInput): Product
   currency: product.currency,
   finish: product.finish,
   intensity: product.intensity,
+  best_for: buildBestFor(product),
+  retailer_name: product.retailer.name,
   badges: buildBadges(product, input),
   reason: buildReason(product, input),
   score: scoreProduct(product, input)

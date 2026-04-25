@@ -46,6 +46,22 @@ const Description = styled.p`
   line-height: 1.7;
 `;
 
+const ContextStrip = styled.div`
+  background: var(--surface-sage);
+  border: 1px solid #DDE8DA;
+  border-radius: var(--radius-lg);
+  color: var(--accent-olive);
+  line-height: 1.6;
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+`;
+
+const ContextTitle = styled.strong`
+  color: var(--accent-olive);
+  display: block;
+  margin-bottom: var(--space-1);
+`;
+
 const BookingLayout = styled.div`
   align-items: start;
   display: grid;
@@ -165,6 +181,23 @@ const Select = styled.select`
   }
 `;
 
+const CheckboxGrid = styled.div`
+  display: grid;
+  gap: var(--space-2);
+`;
+
+const CheckboxLabel = styled.label`
+  align-items: center;
+  color: var(--text-secondary);
+  display: flex;
+  gap: var(--space-2);
+  font-weight: 700;
+`;
+
+const Checkbox = styled.input`
+  accent-color: var(--brand-primary);
+`;
+
 const TextArea = styled.textarea`
   background: var(--surface);
   border: 1px solid var(--border-soft);
@@ -220,8 +253,64 @@ const WarningMessage = styled(SuccessMessage)`
   color: var(--warning);
 `;
 
+const PricePreview = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  line-height: 1.6;
+  padding: var(--space-4);
+
+  strong {
+    color: var(--text-primary);
+  }
+
+  @media (max-width: 560px) {
+    flex-direction: column;
+  }
+`;
+
 const ErrorPanel = styled(Panel)`
   text-align: center;
+`;
+
+const ConfirmationPanel = styled(Panel)`
+  text-align: center;
+`;
+
+const ConfirmationGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-5) auto 0;
+  max-width: 680px;
+  text-align: left;
+`;
+
+const ConfirmationItem = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3);
+
+  @media (max-width: 560px) {
+    flex-direction: column;
+  }
+`;
+
+const PrepList = styled.ul`
+  color: var(--text-secondary);
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-5) auto 0;
+  max-width: 680px;
+  padding-left: 1.2rem;
+  text-align: left;
 `;
 
 const ActionRow = styled.div`
@@ -274,6 +363,26 @@ const experts = {
   ex11: { name: 'Olivia Bennett', title: 'Color Consultant', location: 'San Francisco, USA' }
 };
 
+type BookingAddOn = 'wardrobe_review' | 'makeup_audit';
+type SessionType = 'video' | 'in_person' | 'written_review';
+
+const sessionTypeLabels: Record<SessionType, string> = {
+  video: 'Video consultation',
+  in_person: 'In-person session',
+  written_review: 'Written report review'
+};
+
+const addOnLabels: Record<BookingAddOn, string> = {
+  wardrobe_review: 'Wardrobe review',
+  makeup_audit: 'Makeup audit'
+};
+
+const getEstimatedPrice = (duration: string, addOns: BookingAddOn[]) => {
+  const basePrice = duration === '60' ? 95 : duration === '45' ? 78 : 55;
+  const addOnTotal = addOns.reduce((total, addOn) => total + (addOn === 'wardrobe_review' ? 35 : 25), 0);
+  return basePrice + addOnTotal;
+};
+
 const Booking: React.FC = () => {
   const [searchParams] = useSearchParams();
   const expertId = searchParams.get('expert');
@@ -284,8 +393,11 @@ const Booking: React.FC = () => {
     date: '',
     time: '',
     duration: '30',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago',
+    sessionType: 'video' as SessionType,
     message: ''
   });
+  const [addOns, setAddOns] = useState<BookingAddOn[]>([]);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
@@ -299,6 +411,14 @@ const Booking: React.FC = () => {
       ...current,
       [name]: value
     }));
+  };
+
+  const toggleAddOn = (addOn: BookingAddOn) => {
+    setAddOns((currentAddOns) => (
+      currentAddOns.includes(addOn)
+        ? currentAddOns.filter((currentAddOn) => currentAddOn !== addOn)
+        : [...currentAddOns, addOn]
+    ));
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -319,6 +439,10 @@ const Booking: React.FC = () => {
         date: formData.date,
         time: formData.time,
         duration: formData.duration as '30' | '45' | '60',
+        timezone: formData.timezone,
+        session_type: formData.sessionType,
+        add_ons: addOns,
+        estimated_price: getEstimatedPrice(formData.duration, addOns).toFixed(2),
         message: formData.message || undefined
       });
       setBookingId(booking.booking_id);
@@ -333,22 +457,9 @@ const Booking: React.FC = () => {
     }
 
     setIsSubmitted(true);
-
-    window.setTimeout(() => {
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        date: '',
-        time: '',
-        duration: '30',
-        message: ''
-      });
-      setIsSubmitted(false);
-      setBookingId(null);
-      setSaveWarning(null);
-    }, 3000);
   };
+
+  const estimatedPrice = getEstimatedPrice(formData.duration, addOns);
 
   if (!selectedExpert) {
     return (
@@ -368,16 +479,78 @@ const Booking: React.FC = () => {
     );
   }
 
+  if (isSubmitted) {
+    return (
+      <PageShell>
+        <Container>
+          <ConfirmationPanel>
+            <Eyebrow>Booking request sent</Eyebrow>
+            <Title>Consultation Requested</Title>
+            <Description>
+              Your demo consultation request has been captured for the capstone flow.
+            </Description>
+            {bookingId && (
+              <SuccessMessage>
+                Backend booking record saved: {bookingId}.
+              </SuccessMessage>
+            )}
+            {saveWarning && <WarningMessage>{saveWarning}</WarningMessage>}
+            <ConfirmationGrid>
+              <ConfirmationItem>
+                <span>Consultant</span>
+                <strong>{selectedExpert.name}</strong>
+              </ConfirmationItem>
+              <ConfirmationItem>
+                <span>Preferred time</span>
+                <strong>{formData.date} at {formData.time} ({formData.timezone})</strong>
+              </ConfirmationItem>
+              <ConfirmationItem>
+                <span>Session length</span>
+                <strong>{formData.duration} minutes</strong>
+              </ConfirmationItem>
+              <ConfirmationItem>
+                <span>Session type</span>
+                <strong>{sessionTypeLabels[formData.sessionType]}</strong>
+              </ConfirmationItem>
+              <ConfirmationItem>
+                <span>Add-ons</span>
+                <strong>{addOns.length > 0 ? addOns.map((addOn) => addOnLabels[addOn]).join(', ') : 'None'}</strong>
+              </ConfirmationItem>
+              <ConfirmationItem>
+                <span>Demo estimate</span>
+                <strong>${estimatedPrice.toFixed(2)}</strong>
+              </ConfirmationItem>
+            </ConfirmationGrid>
+            <PrepList>
+              <li>Bring your latest ColorSnap result or upload a fresh photo before the session.</li>
+              <li>Prepare 2-3 outfits or products you want the consultant to review.</li>
+              <li>For video sessions, use natural light so color notes stay reliable.</li>
+            </PrepList>
+            <ActionRow>
+              <PrimaryLink to="/consultation">Choose Another Consultant</PrimaryLink>
+              <SecondaryLink to="/analysis">Start Analysis</SecondaryLink>
+            </ActionRow>
+          </ConfirmationPanel>
+        </Container>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
       <Container>
         <HeaderBlock>
           <Eyebrow>Consultation booking</Eyebrow>
-          <Title>Book Consultation</Title>
+          <Title>Book Your Consultation</Title>
           <Description>
             Submit a demo booking request with your preferred time, session length, and color questions.
           </Description>
         </HeaderBlock>
+
+        <ContextStrip>
+          <ContextTitle>Expert support extends the same color-report journey.</ContextTitle>
+          Bring your palette questions, product concerns, or wardrobe goals into a focused demo booking request.
+        </ContextStrip>
 
         <BookingLayout>
           <ExpertPanel>
@@ -392,15 +565,6 @@ const Booking: React.FC = () => {
           </ExpertPanel>
 
           <Panel>
-            {isSubmitted && (
-              <SuccessMessage>
-                Thank you. Your booking request has been submitted.
-                {bookingId ? ` Backend record: ${bookingId}.` : ' In a production version, a confirmation email would follow.'}
-              </SuccessMessage>
-            )}
-
-            {saveWarning && <WarningMessage>{saveWarning}</WarningMessage>}
-
             <Form onSubmit={handleSubmit}>
               <FormGrid>
                 <FormGroup>
@@ -487,6 +651,65 @@ const Booking: React.FC = () => {
                   </Select>
                 </FormGroup>
 
+                <FormGroup>
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <Select
+                    id="timezone"
+                    name="timezone"
+                    value={formData.timezone}
+                    onChange={handleInputChange}
+                  >
+                    <option value="America/Chicago">Central Time</option>
+                    <option value="America/New_York">Eastern Time</option>
+                    <option value="America/Denver">Mountain Time</option>
+                    <option value="America/Los_Angeles">Pacific Time</option>
+                    <option value="Asia/Seoul">Korea Standard Time</option>
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label htmlFor="sessionType">Session Type</Label>
+                  <Select
+                    id="sessionType"
+                    name="sessionType"
+                    value={formData.sessionType}
+                    onChange={handleInputChange}
+                  >
+                    <option value="video">Video consultation</option>
+                    <option value="in_person">In-person session</option>
+                    <option value="written_review">Written report review</option>
+                  </Select>
+                </FormGroup>
+
+                <FullWidthGroup>
+                  <Label>Add-on options</Label>
+                  <CheckboxGrid>
+                    <CheckboxLabel>
+                      <Checkbox
+                        type="checkbox"
+                        checked={addOns.includes('wardrobe_review')}
+                        onChange={() => toggleAddOn('wardrobe_review')}
+                      />
+                      Wardrobe review (+$35)
+                    </CheckboxLabel>
+                    <CheckboxLabel>
+                      <Checkbox
+                        type="checkbox"
+                        checked={addOns.includes('makeup_audit')}
+                        onChange={() => toggleAddOn('makeup_audit')}
+                      />
+                      Makeup audit (+$25)
+                    </CheckboxLabel>
+                  </CheckboxGrid>
+                </FullWidthGroup>
+
+                <FullWidthGroup>
+                  <PricePreview>
+                    <span>Demo consultation estimate</span>
+                    <strong>${estimatedPrice.toFixed(2)}</strong>
+                  </PricePreview>
+                </FullWidthGroup>
+
                 <FullWidthGroup>
                   <Label htmlFor="message">Additional Notes</Label>
                   <TextArea
@@ -499,8 +722,8 @@ const Booking: React.FC = () => {
                 </FullWidthGroup>
               </FormGrid>
 
-              <SubmitButton type="submit" disabled={isSubmitting || isSubmitted}>
-                {isSubmitting || isSubmitted ? 'Submitting...' : 'Book Consultation'}
+              <SubmitButton type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : 'Book Consultation'}
               </SubmitButton>
             </Form>
           </Panel>

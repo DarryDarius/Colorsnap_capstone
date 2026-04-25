@@ -132,6 +132,8 @@ export type ProductRecommendation = {
   currency: CurrencyCode;
   finish?: ProductFinish;
   intensity?: ProductIntensity;
+  best_for: string[];
+  retailer_name: string;
   badges: string[];
 };
 

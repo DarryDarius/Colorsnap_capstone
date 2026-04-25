@@ -9,7 +9,7 @@ import ImageQualityNotice from '../components/analysis/ImageQualityNotice';
 import PaletteSection from '../components/analysis/PaletteSection';
 import ProductRecommendations from '../components/analysis/ProductRecommendations';
 import ShareResultPanel from '../components/share/ShareResultPanel';
-import { createAnalysisFeedback, getAnalysis } from '../services/api';
+import { ApiClientError, createAnalysisFeedback, getAnalysis } from '../services/api';
 import type { AnalysisFeedback, AnalysisResult, ProductRecommendation } from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
 import { formatLabel, formatPercent } from '../utils/formatters';
@@ -152,6 +152,18 @@ const ErrorBox = styled(StatusBox)`
   color: var(--error);
 `;
 
+const StatusTitle = styled.strong`
+  color: inherit;
+  display: block;
+  font-size: var(--font-md);
+  margin-bottom: var(--space-2);
+`;
+
+const StatusCopy = styled.p`
+  color: inherit;
+  margin: 0;
+`;
+
 const ProcessingList = styled.ul`
   list-style: none;
   margin: 0.9rem 0 0;
@@ -285,6 +297,74 @@ const processingMessages = [
   'Building your seasonal palette summary and product matches.'
 ];
 
+type ResultErrorState = {
+  title: string;
+  message: string;
+};
+
+const getFriendlyLoadError = (error: unknown): ResultErrorState => {
+  if (error instanceof ApiClientError) {
+    if (error.code === 'ANALYSIS_NOT_FOUND') {
+      return {
+        title: 'Analysis not found',
+        message: 'This report is no longer available in the demo backend. Start a new analysis to generate a fresh result.'
+      };
+    }
+
+    return {
+      title: 'Unable to load this result',
+      message: `${error.message} (${error.code || `HTTP ${error.status}`})`
+    };
+  }
+
+  if (error instanceof TypeError) {
+    return {
+      title: 'Backend connection lost',
+      message: 'The result page could not reach the analysis backend. Start it with npm run backend:dev, then try again.'
+    };
+  }
+
+  return {
+    title: 'Unable to load this result',
+    message: 'The result could not be loaded. Please try again.'
+  };
+};
+
+const getFriendlyFailedAnalysis = (code?: string, message?: string): ResultErrorState => {
+  if (code === 'OPENAI_CONFIG_MISSING') {
+    return {
+      title: 'OpenAI is not configured',
+      message: 'Live OpenAI mode is active, but OPENAI_API_KEY is missing in backend/.env. Add the key or switch MOCK_AI=true for demo mode, then upload again.'
+    };
+  }
+
+  if (code === 'IMAGE_QUALITY_BLOCKED') {
+    return {
+      title: 'Photo needs a clearer retake',
+      message: message || 'The image quality check could not safely continue. Use an evenly lit, front-facing photo with your face unobstructed.'
+    };
+  }
+
+  if (code === 'MODEL_TIMEOUT') {
+    return {
+      title: 'Analysis timed out',
+      message: 'The AI request took too long to finish. Try again with a smaller image or switch to demo mode for the presentation.'
+    };
+  }
+
+  if (code?.startsWith('OPENAI_') || code?.startsWith('MODEL_')) {
+    return {
+      title: 'AI analysis could not finish',
+      message: message || 'The AI service returned an unexpected response. Try again, or use demo mode for a stable capstone flow.'
+    };
+  }
+
+  return {
+    title: 'Analysis could not be completed',
+    message: message || 'Please try again with a clear natural-light photo.'
+  };
+};
+
 const getConfidenceLevel = (confidence: number): 'confident' | 'likely' | 'tentative' => {
   if (confidence >= 0.8) return 'confident';
   if (confidence >= 0.65) return 'likely';
@@ -300,7 +380,7 @@ const Result: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ResultErrorState | null>(null);
   const [activeFilter, setActiveFilter] = useState('all');
   const [processingStep, setProcessingStep] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
@@ -319,7 +399,10 @@ const Result: React.FC = () => {
 
   useEffect(() => {
     if (!analysisId) {
-      setError('No analysis id was found. Please upload a photo first.');
+      setError({
+        title: 'No analysis selected',
+        message: 'Upload a photo first so ColorSnap can prepare a color report.'
+      });
       return;
     }
 
@@ -341,7 +424,7 @@ const Result: React.FC = () => {
         }
       } catch (err) {
         if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Unable to load analysis result.');
+          setError(getFriendlyLoadError(err));
           setAnalysis(null);
         }
       }
@@ -432,7 +515,8 @@ const Result: React.FC = () => {
 
         {error && (
           <ErrorBox>
-            {error}
+            <StatusTitle>{error.title}</StatusTitle>
+            <StatusCopy>{error.message}</StatusCopy>
             <InlineActions>
               {analysisId && (
                 <ActionButton type="button" onClick={handleRetry}>
@@ -462,7 +546,12 @@ const Result: React.FC = () => {
 
         {analysis?.status === 'failed' && (
           <ErrorBox>
-            {analysis.error?.message || 'Analysis could not be completed.'}
+            <StatusTitle>
+              {getFriendlyFailedAnalysis(analysis.error?.code, analysis.error?.message).title}
+            </StatusTitle>
+            <StatusCopy>
+              {getFriendlyFailedAnalysis(analysis.error?.code, analysis.error?.message).message}
+            </StatusCopy>
             <InlineActions>
               <ActionButton type="button" onClick={handleRetry}>
                 Try Again
