@@ -137,10 +137,15 @@ const getJsonHeaders = () => ({
   ...getAuthHeaders()
 });
 
-export const createAnalysis = async (image: File): Promise<CreateAnalysisResponse> => {
+export type AnalysisPhotoSource = 'upload' | 'camera';
+
+export const createAnalysis = async (
+  image: File,
+  source: AnalysisPhotoSource = 'upload'
+): Promise<CreateAnalysisResponse> => {
   const formData = new FormData();
   formData.append('image', image);
-  formData.append('source', 'web');
+  formData.append('source', source);
 
   const response = await fetch(`${API_BASE_URL}/api/v1/analyses`, {
     method: 'POST',

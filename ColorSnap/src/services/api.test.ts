@@ -1,4 +1,12 @@
-import { createBooking, createDemoOrder, createSavedResult, createShare, getShare, loginWithGoogle } from './api';
+import {
+  createAnalysis,
+  createBooking,
+  createDemoOrder,
+  createSavedResult,
+  createShare,
+  getShare,
+  loginWithGoogle
+} from './api';
 import type { CartItem } from '../utils/cart';
 
 const mockFetch = jest.fn();
@@ -48,6 +56,30 @@ test('createBooking posts booking data to the backend', async () => {
     expert_id: 'ex1',
     email: 'test@example.com'
   });
+});
+
+test('createAnalysis posts camera source with the image file', async () => {
+  const image = new File(['image-data'], 'selfie.jpg', { type: 'image/jpeg' });
+
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      analysis_id: 'ana_test',
+      status: 'processing',
+      created_at: '2026-04-18T00:00:00.000Z',
+      poll_url: '/api/v1/analyses/ana_test'
+    })
+  });
+
+  const response = await createAnalysis(image, 'camera');
+  const body = mockFetch.mock.calls[0][1].body as FormData;
+
+  expect(response.analysis_id).toBe('ana_test');
+  expect(mockFetch).toHaveBeenCalledWith('/api/v1/analyses', expect.objectContaining({
+    method: 'POST'
+  }));
+  expect(body.get('image')).toBe(image);
+  expect(body.get('source')).toBe('camera');
 });
 
 test('createDemoOrder posts cart items to the backend', async () => {

@@ -297,7 +297,10 @@ const toOrderRecord = (row: NonNullable<OrderRow> & { items?: Array<{
   }))
 });
 
-export const createProcessingAnalysis = async (userId?: string | null) => {
+export const createProcessingAnalysis = async (
+  userId?: string | null,
+  source: 'upload' | 'camera' | 'web' = 'web'
+) => {
   await ensureDatabaseReady();
   const timestamp = nowIso();
   const analysis = await prisma.analysis.create({
@@ -305,7 +308,7 @@ export const createProcessingAnalysis = async (userId?: string | null) => {
       id: createRecordId('ana'),
       userId: userId || null,
       status: 'processing',
-      source: 'web',
+      source,
       createdAt: timestamp,
       updatedAt: timestamp
     }

@@ -120,7 +120,9 @@ const parseMultipart = (body: Buffer, boundary: string): MultipartPart[] => {
 export const parseUploadedImage = async (req: IncomingMessage): Promise<UploadedImage> => {
   const boundary = getBoundary(req.headers['content-type']);
   const body = await readRequestBody(req, MAX_IMAGE_SIZE_BYTES + 1024 * 256);
-  const imagePart = parseMultipart(body, boundary).find((part) => part.name === 'image' && part.filename);
+  const parts = parseMultipart(body, boundary);
+  const imagePart = parts.find((part) => part.name === 'image' && part.filename);
+  const source = parts.find((part) => part.name === 'source')?.data.toString('utf8').trim();
 
   if (!imagePart) {
     throw new ApiError(400, 'MISSING_IMAGE', 'An image file is required.');
@@ -130,6 +132,7 @@ export const parseUploadedImage = async (req: IncomingMessage): Promise<Uploaded
     fieldName: imagePart.name,
     originalName: imagePart.filename || 'upload',
     mimeType: imagePart.contentType || 'application/octet-stream',
+    source: source === 'camera' || source === 'upload' ? source : 'web',
     size: imagePart.data.length,
     buffer: imagePart.data
   };

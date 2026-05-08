@@ -38,7 +38,7 @@ const processAnalysis = async (analysisId: string, image: Awaited<ReturnType<typ
 export const createAnalysis = async (req: Request, res: Response) => {
   try {
     const image = await parseUploadedImage(req);
-    const analysis = await createProcessingAnalysis(req.user?.id);
+    const analysis = await createProcessingAnalysis(req.user?.id, image.source);
 
     void processAnalysis(analysis.analysis_id, image);
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import CameraCapture from '../components/analysis/CameraCapture';
 import { ApiClientError, createAnalysis, getBackendHealth } from '../services/api';
 
 const PageShell = styled.section`
@@ -254,6 +255,10 @@ const ButtonRow = styled.div`
   gap: var(--space-3);
 `;
 
+const UploadButtonRow = styled(ButtonRow)`
+  justify-content: center;
+`;
+
 const AnalyzeActions = styled(ButtonRow)`
   margin-top: var(--space-5);
 `;
@@ -396,8 +401,15 @@ const StepDot = styled.span`
 
 type AiMode = 'mock' | 'openai' | 'offline' | 'unknown';
 type AiStatus = 'ready' | 'missing_config' | 'unknown';
+type PhotoSource = 'upload' | 'camera';
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+type OptionalMediaDevices = {
+  getUserMedia?: MediaDevices['getUserMedia'];
+};
+
+const getMediaDevices = () => (navigator as unknown as { mediaDevices?: OptionalMediaDevices }).mediaDevices;
 
 const getFriendlyAnalysisStartError = (error: unknown) => {
   if (error instanceof ApiClientError) {
@@ -433,13 +445,16 @@ const formatFileSize = (size: number) => {
 
 const Analysis: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPhotoSource, setSelectedPhotoSource] = useState<PhotoSource>('upload');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiMode, setAiMode] = useState<AiMode>('unknown');
   const [aiStatus, setAiStatus] = useState<AiStatus>('unknown');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   const refreshBackendHealth = useCallback(async () => {
@@ -491,7 +506,7 @@ const Analysis: React.FC = () => {
   const isOpenAiMissingConfig = aiMode === 'openai' && aiStatus === 'missing_config';
   const isAnalysisUnavailable = isServiceOffline || isOpenAiMissingConfig;
 
-  const setFile = (file: File) => {
+  const setFile = (file: File, source: PhotoSource = 'upload') => {
     if (!allowedTypes.has(file.type)) {
       setError('Please upload a JPG, PNG, or WEBP image.');
       return;
@@ -504,6 +519,7 @@ const Analysis: React.FC = () => {
 
     setError(null);
     setSelectedFile(file);
+    setSelectedPhotoSource(source);
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -517,7 +533,16 @@ const Analysis: React.FC = () => {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setFile(file);
+      setFile(file, 'upload');
+      event.target.value = '';
+    }
+  };
+
+  const handleCameraFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setFile(file, 'camera');
+      event.target.value = '';
     }
   };
 
@@ -537,7 +562,7 @@ const Analysis: React.FC = () => {
     setError(null);
 
     try {
-      const response = await createAnalysis(selectedFile);
+      const response = await createAnalysis(selectedFile, selectedPhotoSource);
       localStorage.setItem('lastAnalysisId', response.analysis_id);
       navigate(`/result?id=${encodeURIComponent(response.analysis_id)}`);
     } catch (err) {
@@ -551,13 +576,24 @@ const Analysis: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const handleCameraClick = () => {
+    const mediaDevices = getMediaDevices();
+
+    if (mediaDevices?.getUserMedia) {
+      setIsCameraOpen(true);
+      return;
+    }
+
+    cameraInputRef.current?.click();
+  };
+
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setIsDragging(false);
 
     const file = event.dataTransfer.files?.[0];
     if (file) {
-      setFile(file);
+      setFile(file, 'upload');
     }
   };
 
@@ -609,6 +645,13 @@ const Analysis: React.FC = () => {
             accept="image/jpeg,image/png,image/webp"
             onChange={handleFileSelect}
           />
+          <FileInput
+            ref={cameraInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="user"
+            onChange={handleCameraFileSelect}
+          />
 
           <DropZone
             $hasPreview={Boolean(previewUrl)}
@@ -641,7 +684,24 @@ const Analysis: React.FC = () => {
                     </FileMeta>
                   )}
                   <ButtonRow>
-                    <Button type="button" $variant="secondary" onClick={handleUploadClick}>
+                    <Button
+                      type="button"
+                      $variant="secondary"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleCameraClick();
+                      }}
+                    >
+                      Retake Photo
+                    </Button>
+                    <Button
+                      type="button"
+                      $variant="secondary"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleUploadClick();
+                      }}
+                    >
                       Choose Different Photo
                     </Button>
                   </ButtonRow>
@@ -651,10 +711,28 @@ const Analysis: React.FC = () => {
               <UploadEmptyState>
                 <UploadIcon>+</UploadIcon>
                 <UploadTitle>Drop your photo here</UploadTitle>
-                <UploadText>JPG, PNG, or WEBP. Keep the file under 5 MB for the fastest analysis.</UploadText>
-                <Button type="button" $variant="secondary">
-                  Choose Photo
-                </Button>
+                <UploadText>Take a fresh selfie or choose an existing JPG, PNG, or WEBP under 5 MB.</UploadText>
+                <UploadButtonRow>
+                  <Button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleCameraClick();
+                    }}
+                  >
+                    Take Photo
+                  </Button>
+                  <Button
+                    type="button"
+                    $variant="secondary"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleUploadClick();
+                    }}
+                  >
+                    Choose Photo
+                  </Button>
+                </UploadButtonRow>
               </UploadEmptyState>
             )}
           </DropZone>
@@ -698,7 +776,7 @@ const Analysis: React.FC = () => {
             </Checklist>
 
             <PrivacyNote>
-              Your photo is used for this analysis flow only. The current version stores the preview locally in your browser.
+              Your photo is used for this analysis flow only. Camera access starts only when you choose Take Photo, and the preview is stored locally in your browser.
             </PrivacyNote>
 
             <Pipeline>
@@ -712,6 +790,12 @@ const Analysis: React.FC = () => {
           </GuidanceBody>
         </GuidancePanel>
       </Workspace>
+
+      <CameraCapture
+        open={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={(file) => setFile(file, 'camera')}
+      />
     </PageShell>
   );
 };

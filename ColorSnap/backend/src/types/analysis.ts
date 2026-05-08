@@ -211,6 +211,7 @@ export type UploadedImage = {
   fieldName: string;
   originalName: string;
   mimeType: string;
+  source?: 'upload' | 'camera' | 'web';
   size: number;
   buffer: Buffer;
 };
