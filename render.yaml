@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: colorsnap-backend
+    runtime: node
+    rootDir: ColorSnap
+    plan: free
+    buildCommand: npm ci && npm run backend:build
+    startCommand: npm run backend:start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: HOST
+        value: 0.0.0.0
+      - key: MOCK_AI
+        value: true
+      - key: CLIENT_ORIGIN
+        value: "*"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL_PRIMARY
+        value: gpt-5.4-mini
+      - key: OPENAI_MODEL_FAST
+        value: gpt-5.4-mini
+      - key: OPENAI_REASONING_EFFORT
+        value: low
+      - key: OPENAI_IMAGE_DETAIL
+        value: high
+      - key: OPENAI_IMAGE_DETAIL_FALLBACK
+        value: low
+      - key: OPENAI_TIMEOUT_MS
+        value: 30000
