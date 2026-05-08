@@ -60,6 +60,11 @@ The backend supports two AI modes:
 
 Copy `backend/.env.example` to `backend/.env` and set the values you need before starting the backend.
 
+For Google login, create an OAuth 2.0 Web client in Google Cloud and set the same client id in both places:
+
+- `REACT_APP_GOOGLE_CLIENT_ID` in the React app environment, for example in `.env`.
+- `GOOGLE_CLIENT_ID` in `backend/.env`, so the backend can verify Google ID tokens before issuing the ColorSnap JWT.
+
 ### Available Scripts
 
 - `npm start` - Runs the app in development mode

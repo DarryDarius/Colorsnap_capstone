@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import {
   AUTH_TOKEN_STORAGE_KEY,
   getCurrentUser,
+  loginWithGoogle,
   loginUser,
   registerUser,
   type AuthUser
@@ -11,6 +12,7 @@ type AuthContextValue = {
   user: AuthUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginGoogle: (credential: string) => Promise<void>;
   register: (input: { email: string; password: string; name?: string }) => Promise<void>;
   logout: () => void;
 };
@@ -47,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     login: async (email, password) => {
       const response = await loginUser({ email, password });
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.token);
+      setUser(response.user);
+    },
+    loginGoogle: async (credential) => {
+      const response = await loginWithGoogle(credential);
       localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.token);
       setUser(response.user);
     },

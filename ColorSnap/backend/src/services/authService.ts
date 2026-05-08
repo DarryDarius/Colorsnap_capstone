@@ -1,4 +1,6 @@
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { ensureDatabaseReady, prisma } from './storageService';
 import type { AuthTokenPayload, AuthUser } from '../types/auth';
@@ -12,6 +14,7 @@ const createRecordId = (prefix: string) => {
 
 const nowIso = () => new Date().toISOString();
 const passwordRounds = 10;
+let googleOAuthClient: OAuth2Client | null = null;
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -23,6 +26,23 @@ const getJwtSecret = () => {
   }
 
   return secret;
+};
+
+const getGoogleClient = () => {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+
+  if (!clientId) {
+    throw new ApiError(500, 'GOOGLE_AUTH_NOT_CONFIGURED', 'Google login is not configured.');
+  }
+
+  if (!googleOAuthClient) {
+    googleOAuthClient = new OAuth2Client(clientId);
+  }
+
+  return {
+    client: googleOAuthClient,
+    clientId
+  };
 };
 
 const toAuthUser = (user: {
@@ -127,6 +147,65 @@ export const loginUser = async (input: {
 
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     throw new ApiError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
+  }
+
+  const authUser = toAuthUser(user);
+
+  return {
+    user: authUser,
+    token: createAuthToken(authUser)
+  };
+};
+
+export const loginWithGoogleCredential = async (credential: string) => {
+  await ensureDatabaseReady();
+
+  if (!credential.trim()) {
+    throw new ApiError(400, 'INVALID_GOOGLE_CREDENTIAL', 'Google credential is required.');
+  }
+
+  const { client, clientId } = getGoogleClient();
+  const ticket = await client.verifyIdToken({
+    idToken: credential,
+    audience: clientId
+  }).catch(() => {
+    throw new ApiError(401, 'INVALID_GOOGLE_CREDENTIAL', 'Google credential could not be verified.');
+  });
+  const payload = ticket.getPayload();
+  const email = normalizeEmail(payload?.email || '');
+
+  if (!payload?.sub || !email || payload.email_verified !== true) {
+    throw new ApiError(401, 'INVALID_GOOGLE_CREDENTIAL', 'Google account email could not be verified.');
+  }
+
+  const existingUser = await prisma.user.findUnique({
+    where: { email }
+  });
+  let user = existingUser;
+
+  if (user && payload.name && !user.name) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        name: payload.name,
+        updatedAt: nowIso()
+      }
+    });
+  }
+
+  if (!user) {
+    const timestamp = nowIso();
+    user = await prisma.user.create({
+      data: {
+        id: createRecordId('usr'),
+        email,
+        passwordHash: await bcrypt.hash(`google-oauth:${payload.sub}:${randomUUID()}`, passwordRounds),
+        name: payload.name || undefined,
+        role: 'user',
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }
+    });
   }
 
   const authUser = toAuthUser(user);

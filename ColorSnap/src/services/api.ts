@@ -271,6 +271,18 @@ export const loginUser = async (input: {
   return readJson<AuthResponse>(response);
 };
 
+export const loginWithGoogle = async (credential: string): Promise<AuthResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/google`, {
+    method: 'POST',
+    headers: getJsonHeaders(),
+    body: JSON.stringify({
+      credential
+    })
+  });
+
+  return readJson<AuthResponse>(response);
+};
+
 export const getCurrentUser = async (): Promise<{ user: AuthUser }> => {
   const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
     headers: getAuthHeaders()

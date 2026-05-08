@@ -17,6 +17,7 @@
     "@types/react-router-dom": "^5.3.3",
     "@types/styled-components": "^5.1.34",
     "bcryptjs": "^3.0.3",
+    "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.3",
     "prisma": "^5.22.0",
     "react": "^19.1.1",

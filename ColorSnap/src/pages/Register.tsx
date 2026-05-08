@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import GoogleSignInButton from '../components/auth/GoogleSignInButton';
 import { useAuth } from '../context/AuthContext';
 
 const Page = styled.section`
@@ -58,6 +59,24 @@ const Button = styled.button`
   }
 `;
 
+const Divider = styled.div`
+  align-items: center;
+  color: var(--text-muted);
+  display: grid;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  gap: var(--space-3);
+  grid-template-columns: 1fr auto 1fr;
+  text-transform: uppercase;
+
+  &::before,
+  &::after {
+    background: var(--border-soft);
+    content: '';
+    height: 1px;
+  }
+`;
+
 const Message = styled.p<{ $error?: boolean }>`
   color: ${(props) => (props.$error ? 'var(--error)' : 'var(--text-secondary)')};
   font-weight: 700;
@@ -65,7 +84,7 @@ const Message = styled.p<{ $error?: boolean }>`
 `;
 
 const Register: React.FC = () => {
-  const { register } = useAuth();
+  const { loginGoogle, register } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -84,11 +103,19 @@ const Register: React.FC = () => {
     }
   };
 
+  const handleGoogleCredential = useCallback(async (credential: string) => {
+    setError(null);
+    await loginGoogle(credential);
+    navigate('/my-results');
+  }, [loginGoogle, navigate]);
+
   return (
     <Page>
       <Card onSubmit={handleSubmit}>
         <Title>Create your ColorSnap account</Title>
         <Copy>Keep your color reports private, organized, and ready to share.</Copy>
+        <GoogleSignInButton onCredential={handleGoogleCredential} />
+        <Divider>or</Divider>
         <Label>
           Name
           <Input value={name} onChange={(event) => setName(event.target.value)} />

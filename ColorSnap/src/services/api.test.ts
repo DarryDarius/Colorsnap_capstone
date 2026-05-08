@@ -1,4 +1,4 @@
-import { createBooking, createDemoOrder, createSavedResult, createShare, getShare } from './api';
+import { createBooking, createDemoOrder, createSavedResult, createShare, getShare, loginWithGoogle } from './api';
 import type { CartItem } from '../utils/cart';
 
 const mockFetch = jest.fn();
@@ -175,4 +175,32 @@ test('createShare posts saved result context and getShare fetches by id', async 
     method: 'POST'
   }));
   expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/v1/shares/shr_test');
+});
+
+test('loginWithGoogle posts the Google credential to the auth endpoint', async () => {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      user: {
+        id: 'usr_google',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'user'
+      },
+      token: 'jwt_test'
+    })
+  });
+
+  const response = await loginWithGoogle('google-id-token');
+
+  expect(response.token).toBe('jwt_test');
+  expect(mockFetch).toHaveBeenCalledWith('/api/v1/auth/google', expect.objectContaining({
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }));
+  expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+    credential: 'google-id-token'
+  });
 });
