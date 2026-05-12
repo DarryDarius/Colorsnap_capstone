@@ -6,7 +6,9 @@
   "scripts": {
     "build": "node ../node_modules/prisma/build/index.js generate --schema prisma/schema.prisma && node ../node_modules/typescript/bin/tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "dev": "npm run build && node dist/server.js"
+    "dev": "npm run build && node dist/server.js",
+    "eval:color": "node evals/runColorAnalysisEval.js",
+    "eval:color:baseline": "node evals/runColorAnalysisEval.js --out evals/baseline/color-analysis-baseline.json --markdown-out evals/baseline/color-analysis-baseline.md"
   },
   "dependencies": {
     "express": "^4.21.2"

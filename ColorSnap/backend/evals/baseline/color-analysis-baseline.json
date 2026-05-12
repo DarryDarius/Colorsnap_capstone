@@ -1,0 +1,345 @@
+{
+  "name": "colorsnap-color-analysis-eval",
+  "dataset": {
+    "path": "evals/fixtures/color-analysis-goldset.jsonl",
+    "total_items": 5,
+    "evaluated_items": 5
+  },
+  "mode": "mock",
+  "generated_at": "2026-05-12T23:24:04.712Z",
+  "metrics": {
+    "total_cases": 5,
+    "schema_valid_rate": 1,
+    "quality_gate_accuracy": 1,
+    "season_top1_accuracy": 0.4,
+    "season_top2_accuracy": 0.6,
+    "undertone_accuracy": 0.4,
+    "brightness_accuracy": 0.6,
+    "saturation_accuracy": 0.8,
+    "contrast_accuracy": 0.6,
+    "confidence_calibration_score": 0.66,
+    "average_latency_ms": 901,
+    "failed_case_count": 3
+  },
+  "cases": [
+    {
+      "id": "mock-001",
+      "status": "completed",
+      "latency_ms": 902,
+      "expected": {
+        "primary": "Warm Autumn",
+        "secondary": "Soft Autumn",
+        "attributes": {
+          "undertone": "warm",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "quality_label": "good"
+      },
+      "predicted": {
+        "primary": "Warm Autumn",
+        "secondary": "Soft Autumn",
+        "confidence": 0.7,
+        "attributes": {
+          "undertone": "warm",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "image_quality": {
+          "passed": true,
+          "score": 0.87,
+          "issues": [],
+          "retry_advice": null
+        },
+        "top_candidates": [
+          "Warm Autumn",
+          "Soft Autumn",
+          "Deep Autumn",
+          "Soft Summer"
+        ],
+        "critic": {
+          "passed": false,
+          "issues": [
+            {
+              "code": "CONFIDENCE_TOO_HIGH",
+              "severity": "medium",
+              "message": "The top season candidates are close, so the result should be presented as tentative."
+            }
+          ],
+          "suggested_confidence": 0.7
+        }
+      },
+      "scores": {
+        "schema_valid": true,
+        "quality_gate_match": true,
+        "season_top1_match": true,
+        "season_top2_match": true,
+        "undertone_match": true,
+        "brightness_match": true,
+        "saturation_match": true,
+        "contrast_match": true,
+        "confidence_calibration_score": 1
+      }
+    },
+    {
+      "id": "mock-002",
+      "status": "completed",
+      "latency_ms": 901,
+      "expected": {
+        "primary": "Soft Autumn",
+        "secondary": "Warm Autumn",
+        "attributes": {
+          "undertone": "neutral",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "low"
+        },
+        "quality_label": "good"
+      },
+      "predicted": {
+        "primary": "Warm Autumn",
+        "secondary": "Soft Autumn",
+        "confidence": 0.7,
+        "attributes": {
+          "undertone": "warm",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "image_quality": {
+          "passed": true,
+          "score": 0.87,
+          "issues": [],
+          "retry_advice": null
+        },
+        "top_candidates": [
+          "Warm Autumn",
+          "Soft Autumn",
+          "Deep Autumn",
+          "Soft Summer"
+        ],
+        "critic": {
+          "passed": false,
+          "issues": [
+            {
+              "code": "CONFIDENCE_TOO_HIGH",
+              "severity": "medium",
+              "message": "The top season candidates are close, so the result should be presented as tentative."
+            }
+          ],
+          "suggested_confidence": 0.7
+        }
+      },
+      "scores": {
+        "schema_valid": true,
+        "quality_gate_match": true,
+        "season_top1_match": false,
+        "season_top2_match": true,
+        "undertone_match": false,
+        "brightness_match": true,
+        "saturation_match": true,
+        "contrast_match": false,
+        "confidence_calibration_score": 0.7
+      }
+    },
+    {
+      "id": "mock-003",
+      "status": "completed",
+      "latency_ms": 901,
+      "expected": {
+        "primary": "Cool Summer",
+        "secondary": "Soft Summer",
+        "attributes": {
+          "undertone": "cool",
+          "brightness": "medium",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "quality_label": "usable"
+      },
+      "predicted": {
+        "primary": "Warm Autumn",
+        "secondary": "Soft Autumn",
+        "confidence": 0.62,
+        "attributes": {
+          "undertone": "warm",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "image_quality": {
+          "passed": false,
+          "score": 0.62,
+          "issues": [
+            "The uploaded file is quite small, so fine details may be limited."
+          ],
+          "retry_advice": "For a more reliable result, upload a larger clear selfie in natural light."
+        },
+        "top_candidates": [
+          "Warm Autumn",
+          "Soft Autumn",
+          "Deep Autumn",
+          "Soft Summer"
+        ],
+        "critic": {
+          "passed": false,
+          "issues": [
+            {
+              "code": "CONFIDENCE_TOO_HIGH",
+              "severity": "high",
+              "message": "Confidence is too high for a low-quality image."
+            },
+            {
+              "code": "CONFIDENCE_TOO_HIGH",
+              "severity": "medium",
+              "message": "The top season candidates are close, so the result should be presented as tentative."
+            }
+          ],
+          "suggested_confidence": 0.62
+        }
+      },
+      "scores": {
+        "schema_valid": true,
+        "quality_gate_match": true,
+        "season_top1_match": false,
+        "season_top2_match": false,
+        "undertone_match": false,
+        "brightness_match": false,
+        "saturation_match": true,
+        "contrast_match": true,
+        "confidence_calibration_score": 0.3
+      }
+    },
+    {
+      "id": "mock-004",
+      "status": "completed",
+      "latency_ms": 901,
+      "expected": {
+        "primary": "Bright Winter",
+        "secondary": "Cool Winter",
+        "attributes": {
+          "undertone": "cool",
+          "brightness": "high",
+          "saturation": "bright",
+          "contrast": "high"
+        },
+        "quality_label": "good"
+      },
+      "predicted": {
+        "primary": "Warm Autumn",
+        "secondary": "Soft Autumn",
+        "confidence": 0.7,
+        "attributes": {
+          "undertone": "warm",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "image_quality": {
+          "passed": true,
+          "score": 0.87,
+          "issues": [],
+          "retry_advice": null
+        },
+        "top_candidates": [
+          "Warm Autumn",
+          "Soft Autumn",
+          "Deep Autumn",
+          "Soft Summer"
+        ],
+        "critic": {
+          "passed": false,
+          "issues": [
+            {
+              "code": "CONFIDENCE_TOO_HIGH",
+              "severity": "medium",
+              "message": "The top season candidates are close, so the result should be presented as tentative."
+            }
+          ],
+          "suggested_confidence": 0.7
+        }
+      },
+      "scores": {
+        "schema_valid": true,
+        "quality_gate_match": true,
+        "season_top1_match": false,
+        "season_top2_match": false,
+        "undertone_match": false,
+        "brightness_match": false,
+        "saturation_match": false,
+        "contrast_match": false,
+        "confidence_calibration_score": 0.3
+      }
+    },
+    {
+      "id": "mock-005",
+      "status": "completed",
+      "latency_ms": 902,
+      "expected": {
+        "primary": "Warm Autumn",
+        "secondary": "Soft Autumn",
+        "attributes": {
+          "undertone": "warm",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "quality_label": "low_quality"
+      },
+      "predicted": {
+        "primary": "Warm Autumn",
+        "secondary": "Soft Autumn",
+        "confidence": 0.62,
+        "attributes": {
+          "undertone": "warm",
+          "brightness": "medium-low",
+          "saturation": "muted",
+          "contrast": "medium"
+        },
+        "image_quality": {
+          "passed": false,
+          "score": 0.62,
+          "issues": [
+            "The uploaded file is quite small, so fine details may be limited."
+          ],
+          "retry_advice": "For a more reliable result, upload a larger clear selfie in natural light."
+        },
+        "top_candidates": [
+          "Warm Autumn",
+          "Soft Autumn",
+          "Deep Autumn",
+          "Soft Summer"
+        ],
+        "critic": {
+          "passed": false,
+          "issues": [
+            {
+              "code": "CONFIDENCE_TOO_HIGH",
+              "severity": "high",
+              "message": "Confidence is too high for a low-quality image."
+            },
+            {
+              "code": "CONFIDENCE_TOO_HIGH",
+              "severity": "medium",
+              "message": "The top season candidates are close, so the result should be presented as tentative."
+            }
+          ],
+          "suggested_confidence": 0.62
+        }
+      },
+      "scores": {
+        "schema_valid": true,
+        "quality_gate_match": true,
+        "season_top1_match": true,
+        "season_top2_match": true,
+        "undertone_match": true,
+        "brightness_match": true,
+        "saturation_match": true,
+        "contrast_match": true,
+        "confidence_calibration_score": 1
+      }
+    }
+  ]
+}
