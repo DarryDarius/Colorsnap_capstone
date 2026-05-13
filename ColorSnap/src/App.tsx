@@ -18,6 +18,7 @@ import SharedResult from './pages/SharedResult';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import MyResults from './pages/MyResults';
+import SavedLooks from './pages/SavedLooks';
 
 const GlobalStyle = createGlobalStyle`
   :root {
@@ -265,6 +266,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/my-results" element={<MyResults />} />
+              <Route path="/saved-looks" element={<SavedLooks />} />
             </Routes>
           </MainContent>
           <Footer />

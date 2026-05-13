@@ -9,8 +9,17 @@ import ImageQualityNotice from '../components/analysis/ImageQualityNotice';
 import PaletteSection from '../components/analysis/PaletteSection';
 import ProductRecommendations from '../components/analysis/ProductRecommendations';
 import ShareResultPanel from '../components/share/ShareResultPanel';
-import { ApiClientError, createAnalysisFeedback, getAnalysis } from '../services/api';
-import type { AnalysisFeedback, AnalysisResult, ProductRecommendation } from '../types/analysis';
+import { ApiClientError, addProductToSavedLook, createAnalysisFeedback, getAnalysis, saveBeautyPreferences } from '../services/api';
+import type {
+  AnalysisFeedback,
+  AnalysisResult,
+  BeautyPreferenceInput,
+  BudgetRange,
+  MakeupStyle,
+  ProductFinish,
+  ProductRecommendation,
+  ShoppingGoal
+} from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
 import { formatLabel, formatPercent } from '../utils/formatters';
 
@@ -291,11 +300,86 @@ const FeedbackStatus = styled.p`
   margin: 0;
 `;
 
+const PreferenceIntro = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin: 0 auto var(--space-5);
+  max-width: 880px;
+  padding: var(--space-4);
+  text-align: left;
+
+  strong {
+    color: var(--text-primary);
+  }
+`;
+
+const PreferenceGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 auto var(--space-4);
+  max-width: 880px;
+  text-align: left;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const PreferenceField = styled.label`
+  color: var(--text-primary);
+  display: grid;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  gap: var(--space-2);
+`;
+
+const PreferenceSelect = styled.select`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font: inherit;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+`;
+
+const PreferenceInput = styled.input`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font: inherit;
+  min-height: 44px;
+  padding: 0.65rem 0.8rem;
+`;
+
+const FinishChoices = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+  margin-bottom: var(--space-4);
+`;
+
 const processingMessages = [
   'Checking lighting, clarity, and facial visibility.',
   'Estimating undertone, contrast, brightness, and saturation.',
   'Building your seasonal palette summary and product matches.'
 ];
+
+const finishOptions: ProductFinish[] = ['matte', 'satin', 'dewy', 'natural', 'shimmer'];
+
+const splitPreferenceText = (value: string) => (
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+);
 
 type ResultErrorState = {
   title: string;
@@ -387,6 +471,15 @@ const Result: React.FC = () => {
   const [feedbackRating, setFeedbackRating] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [feedbackTags, setFeedbackTags] = useState<AnalysisFeedback['issue_tags']>([]);
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
+  const [makeupStyle, setMakeupStyle] = useState<MakeupStyle>('natural');
+  const [budgetRange, setBudgetRange] = useState<BudgetRange>('flexible');
+  const [shoppingGoal, setShoppingGoal] = useState<ShoppingGoal>('full_look');
+  const [preferredFinishes, setPreferredFinishes] = useState<ProductFinish[]>([]);
+  const [preferredBrands, setPreferredBrands] = useState('');
+  const [avoidColors, setAvoidColors] = useState('');
+  const [preferenceStatus, setPreferenceStatus] = useState<string | null>(null);
+  const [preferenceSaving, setPreferenceSaving] = useState(false);
+  const [lookStatus, setLookStatus] = useState<string | null>(null);
   const navigate = useNavigate();
   const analysisId = searchParams.get('id') || localStorage.getItem('lastAnalysisId');
 
@@ -467,6 +560,22 @@ const Result: React.FC = () => {
     window.alert(`${product.name} is in your cart (${item.quantity}).`);
   };
 
+  const handleSaveToLook = async (product: ProductRecommendation) => {
+    if (!analysis?.analysis_id) {
+      return;
+    }
+
+    try {
+      const look = await addProductToSavedLook({
+        analysis_id: analysis.analysis_id,
+        product
+      });
+      setLookStatus(`${product.name} saved to ${look.name}.`);
+    } catch (err) {
+      setLookStatus(err instanceof Error ? err.message : 'Unable to save this product to a look.');
+    }
+  };
+
   const handleRetry = () => {
     setError(null);
     setAnalysis(null);
@@ -494,6 +603,47 @@ const Result: React.FC = () => {
       setFeedbackStatus('Feedback saved for future quality tuning.');
     } catch (err) {
       setFeedbackStatus(err instanceof Error ? err.message : 'Unable to save feedback.');
+    }
+  };
+
+  const togglePreferredFinish = (finish: ProductFinish) => {
+    setPreferredFinishes((currentFinishes) => (
+      currentFinishes.includes(finish)
+        ? currentFinishes.filter((currentFinish) => currentFinish !== finish)
+        : [...currentFinishes, finish]
+    ));
+  };
+
+  const submitBeautyPreferences = async () => {
+    if (!analysis?.analysis_id) {
+      return;
+    }
+
+    const input: BeautyPreferenceInput = {
+      analysis_id: analysis.analysis_id,
+      makeup_style: makeupStyle,
+      budget_range: budgetRange,
+      shopping_goal: shoppingGoal,
+      preferred_finishes: preferredFinishes,
+      preferred_brands: splitPreferenceText(preferredBrands),
+      avoid_colors: splitPreferenceText(avoidColors)
+    };
+
+    setPreferenceSaving(true);
+    setPreferenceStatus(null);
+
+    try {
+      const response = await saveBeautyPreferences(input);
+      setAnalysis((currentAnalysis) => (
+        currentAnalysis
+          ? { ...currentAnalysis, products: response.products }
+          : currentAnalysis
+      ));
+      setPreferenceStatus('Preferences saved. Product recommendations have been re-ranked for your shopping style.');
+    } catch (err) {
+      setPreferenceStatus(err instanceof Error ? err.message : 'Unable to save beauty preferences.');
+    } finally {
+      setPreferenceSaving(false);
     }
   };
 
@@ -721,13 +871,91 @@ const Result: React.FC = () => {
 
           <ReportSection>
             <SectionTitle>Product Recommendations</SectionTitle>
+            <PreferenceIntro>
+              <strong>Personalize your picks</strong> by adding shopping intent, budget, finish, brand, and avoid-color preferences.
+            </PreferenceIntro>
+            <PreferenceGrid>
+              <PreferenceField>
+                Makeup style
+                <PreferenceSelect value={makeupStyle} onChange={(event) => setMakeupStyle(event.target.value as MakeupStyle)}>
+                  <option value="natural">Natural</option>
+                  <option value="polished">Polished</option>
+                  <option value="soft_glam">Soft glam</option>
+                  <option value="bold">Bold</option>
+                  <option value="glam">Glam</option>
+                </PreferenceSelect>
+              </PreferenceField>
+              <PreferenceField>
+                Budget
+                <PreferenceSelect value={budgetRange} onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}>
+                  <option value="flexible">Flexible</option>
+                  <option value="drugstore">Drugstore</option>
+                  <option value="mid_range">Mid-range</option>
+                  <option value="luxury">Luxury</option>
+                </PreferenceSelect>
+              </PreferenceField>
+              <PreferenceField>
+                Shopping goal
+                <PreferenceSelect value={shoppingGoal} onChange={(event) => setShoppingGoal(event.target.value as ShoppingGoal)}>
+                  <option value="full_look">Full look</option>
+                  <option value="lipstick">Lipstick</option>
+                  <option value="blush">Blush</option>
+                  <option value="eyes">Eyeshadow</option>
+                  <option value="base">Base makeup</option>
+                  <option value="fashion">Fashion colors</option>
+                </PreferenceSelect>
+              </PreferenceField>
+              <PreferenceField>
+                Preferred brands
+                <PreferenceInput
+                  value={preferredBrands}
+                  onChange={(event) => setPreferredBrands(event.target.value)}
+                  placeholder="Rare Beauty, MAC"
+                />
+              </PreferenceField>
+              <PreferenceField>
+                Avoid colors
+                <PreferenceInput
+                  value={avoidColors}
+                  onChange={(event) => setAvoidColors(event.target.value)}
+                  placeholder="icy pink, orange"
+                />
+              </PreferenceField>
+            </PreferenceGrid>
+            <FinishChoices aria-label="Preferred finishes">
+              {finishOptions.map((finish) => (
+                <FeedbackButton
+                  key={finish}
+                  type="button"
+                  $selected={preferredFinishes.includes(finish)}
+                  onClick={() => togglePreferredFinish(finish)}
+                >
+                  {formatLabel(finish)}
+                </FeedbackButton>
+              ))}
+            </FinishChoices>
+            <InlineActions>
+              <ActionButton
+                type="button"
+                $variant="primary"
+                disabled={preferenceSaving}
+                onClick={submitBeautyPreferences}
+              >
+                {preferenceSaving ? 'Saving Preferences' : 'Personalize Recommendations'}
+              </ActionButton>
+            </InlineActions>
+            {preferenceStatus && <FeedbackStatus>{preferenceStatus}</FeedbackStatus>}
+            {lookStatus && <FeedbackStatus>{lookStatus}</FeedbackStatus>}
+            <ReportBlock>
             <ProductRecommendations
               products={analysis.products}
               activeFilter={activeFilter}
               onFilterChange={setActiveFilter}
               onAddToCart={handleAddToCart}
+              onSaveToLook={handleSaveToLook}
               analysisId={analysis.analysis_id}
             />
+            </ReportBlock>
           </ReportSection>
         </>
       )}

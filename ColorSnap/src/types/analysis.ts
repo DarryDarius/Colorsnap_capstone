@@ -22,6 +22,9 @@ export type ProductCategory = 'lipstick' | 'blush' | 'eyeshadow' | 'base_makeup'
 export type ProductFinish = 'matte' | 'satin' | 'dewy' | 'natural' | 'shimmer';
 export type ProductIntensity = 'soft' | 'medium' | 'bold';
 export type CurrencyCode = 'USD';
+export type MakeupStyle = 'natural' | 'polished' | 'soft_glam' | 'bold' | 'glam';
+export type BudgetRange = 'flexible' | 'drugstore' | 'mid_range' | 'luxury';
+export type ShoppingGoal = 'full_look' | 'lipstick' | 'blush' | 'eyes' | 'base' | 'fashion';
 
 export type ImageQuality = {
   passed: boolean;
@@ -128,6 +131,17 @@ export type ProductRecommendation = {
   url: string;
   purchase_url: string;
   score: number;
+  score_breakdown?: {
+    season: number;
+    undertone: number;
+    saturation: number;
+    brightness: number;
+    contrast: number;
+    category: number;
+    preference?: number;
+  };
+  match_reasons?: string[];
+  match_summary?: string;
   price: string;
   currency: CurrencyCode;
   finish?: ProductFinish;
@@ -156,12 +170,42 @@ export type ProductDetail = {
   why_it_matches_you: string;
   use_cases: string[];
   ingredients_highlights: string[];
+  tags?: string[];
   retailer: {
     name: string;
     url: string;
     affiliate?: boolean;
   };
   related_products: ProductRecommendation[];
+};
+
+export type BeautyPreferenceInput = {
+  analysis_id: string;
+  makeup_style: MakeupStyle;
+  budget_range: BudgetRange;
+  shopping_goal: ShoppingGoal;
+  preferred_finishes: ProductFinish[];
+  preferred_brands: string[];
+  avoid_colors: string[];
+};
+
+export type BeautyPreferenceRecord = BeautyPreferenceInput & {
+  preference_id: string;
+  user_id?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SavedLookRecord = {
+  look_id: string;
+  user_id?: string;
+  analysis_id: string;
+  name: string;
+  occasion: string;
+  products: ProductRecommendation[];
+  notes?: string;
+  created_at: string;
+  updated_at: string;
 };
 
 export type AnalysisResult = {

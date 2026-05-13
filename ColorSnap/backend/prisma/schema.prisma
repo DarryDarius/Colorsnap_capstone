@@ -122,6 +122,8 @@ model ShareRecord {
 model Booking {
   id         String  @id
   userId     String?
+  analysisId String?
+  savedLookId String?
   expertId   String
   expertName String
   name       String
@@ -131,6 +133,7 @@ model Booking {
   time       String
   duration   String
   message    String?
+  userQuestions String?
   status     String
   createdAt  String
 
@@ -170,6 +173,10 @@ model OrderItem {
   quantity     Int
   retailerName String?
   purchaseUrl  String?
+  analysisId   String?
+  matchReason  String?
+  matchScore   Int?
+  sourceLookId String?
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

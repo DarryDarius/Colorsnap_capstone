@@ -538,6 +538,8 @@ const ShoppingCart: React.FC = () => {
                           .join(' | ')}
                       </ItemMeta>
                       {item.analysisId && <SourceBadge>Saved from analysis result</SourceBadge>}
+                      {item.sourceLookId && <SourceBadge>Part of a saved look</SourceBadge>}
+                      {typeof item.matchScore === 'number' && <SourceBadge>{item.matchScore}% match</SourceBadge>}
                       <MatchReason>{item.matchReason || item.description}</MatchReason>
                       <ItemActions>
                         {detailsUrl && <TextLink to={detailsUrl}>View Details</TextLink>}

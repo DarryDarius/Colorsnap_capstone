@@ -1,10 +1,11 @@
 import type { Request, Response } from 'express';
 import { getAnalysis } from '../services/storageService';
 import {
+  getProductCatalogSummary,
   getProductDetailBySlug,
   getProductRecommendations
 } from '../services/productRecommendationService';
-import type { Brightness, ProductCategory, Saturation, Season, Undertone } from '../types/analysis';
+import type { Brightness, Contrast, ProductCategory, Saturation, Season, Undertone } from '../types/analysis';
 import { ApiError, toErrorResponse } from '../utils/errors';
 
 export const fetchProductRecommendations = (req: Request, res: Response) => {
@@ -18,19 +19,31 @@ export const fetchProductRecommendations = (req: Request, res: Response) => {
 
     const limit = req.query.limit ? Number(req.query.limit) : 6;
 
+    const input = {
+      primarySeason: season,
+      secondarySeason: null,
+      attributes: {
+        undertone,
+        brightness: (req.query.brightness as Brightness | undefined) || 'medium',
+        saturation: (req.query.saturation as Saturation | undefined) || 'medium',
+        contrast: (req.query.contrast as Contrast | undefined) || 'medium'
+      },
+      category: req.query.category as ProductCategory | undefined,
+      limit: Number.isFinite(limit) ? limit : 6
+    };
+
     res.json({
-      items: getProductRecommendations({
-        primarySeason: season,
-        secondarySeason: null,
-        attributes: {
+      items: getProductRecommendations(input),
+      meta: {
+        profile: {
+          season,
           undertone,
-          brightness: (req.query.brightness as Brightness | undefined) || 'medium',
-          saturation: (req.query.saturation as Saturation | undefined) || 'medium',
-          contrast: 'medium'
+          brightness: input.attributes.brightness,
+          saturation: input.attributes.saturation,
+          contrast: input.attributes.contrast
         },
-        category: req.query.category as ProductCategory | undefined,
-        limit: Number.isFinite(limit) ? limit : 6
-      })
+        catalog: getProductCatalogSummary()
+      }
     });
   } catch (error) {
     const response = toErrorResponse(error);

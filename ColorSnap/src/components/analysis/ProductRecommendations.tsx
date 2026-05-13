@@ -165,6 +165,42 @@ const ProductInfo = styled.p`
   }
 `;
 
+const ReasonList = styled.ul`
+  color: var(--text-secondary);
+  display: grid;
+  font-size: var(--font-sm);
+  gap: var(--space-2);
+  line-height: 1.55;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    border-left: 3px solid var(--brand-primary-soft);
+    padding-left: var(--space-2);
+  }
+`;
+
+const ScoreBreakdown = styled.div`
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 560px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+`;
+
+const ScorePill = styled.span`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  font-weight: 800;
+  padding: 0.35rem 0.55rem;
+`;
+
 const MetaGrid = styled.div`
   display: grid;
   gap: var(--space-2);
@@ -261,6 +297,7 @@ type Props = {
   activeFilter: string;
   onFilterChange: (filter: string) => void;
   onAddToCart: (product: ProductRecommendation) => void;
+  onSaveToLook?: (product: ProductRecommendation) => void;
   analysisId?: string | null;
 };
 
@@ -303,11 +340,23 @@ const matchesPriceFilter = (product: ProductRecommendation, priceFilter: PriceFi
   return price > 50;
 };
 
+const formatScoreBreakdown = (product: ProductRecommendation) => {
+  if (!product.score_breakdown) {
+    return [];
+  }
+
+  return Object.entries(product.score_breakdown).map(([key, value]) => ({
+    label: formatLabel(key),
+    value: `${Math.round(value * 100)}%`
+  }));
+};
+
 const ProductRecommendations: React.FC<Props> = ({
   products = [],
   activeFilter,
   onFilterChange,
   onAddToCart,
+  onSaveToLook,
   analysisId
 }) => {
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
@@ -439,11 +488,18 @@ const ProductRecommendations: React.FC<Props> = ({
               <ProductInfo><strong>Shade:</strong> {product.shade}</ProductInfo>
               <ProductInfo><strong>Category:</strong> {formatLabel(product.category)}</ProductInfo>
               <ProductInfo><strong>Retailer:</strong> {product.retailer_name || getRetailerName(product.purchase_url)}</ProductInfo>
-              <ProductInfo><strong>Match Score:</strong> {product.score}</ProductInfo>
+              <ProductInfo><strong>Match Score:</strong> {product.score}%</ProductInfo>
               <ProductInfo><strong>Finish:</strong> {product.finish ? formatLabel(product.finish) : 'Any'}</ProductInfo>
               <ProductInfo><strong>Intensity:</strong> {product.intensity ? formatLabel(product.intensity) : 'Any'}</ProductInfo>
               <ProductInfo><strong>Price:</strong> ${product.price}</ProductInfo>
             </MetaGrid>
+            {formatScoreBreakdown(product).length > 0 && (
+              <ScoreBreakdown aria-label={`${product.name} score breakdown`}>
+                {formatScoreBreakdown(product).map((item) => (
+                  <ScorePill key={item.label}>{item.label}: {item.value}</ScorePill>
+                ))}
+              </ScoreBreakdown>
+            )}
             {product.best_for?.length > 0 && (
               <BestForList aria-label={`${product.name} best for`}>
                 {product.best_for.map((item) => (
@@ -453,6 +509,13 @@ const ProductRecommendations: React.FC<Props> = ({
             )}
             <ProductInfo>{product.short_description || `${product.shade} selected for your palette.`}</ProductInfo>
             <ProductInfo>{product.reason}</ProductInfo>
+            {product.match_reasons && product.match_reasons.length > 0 && (
+              <ReasonList aria-label={`${product.name} match reasons`}>
+                {product.match_reasons.slice(0, 3).map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ReasonList>
+            )}
             <ActionRow>
               {product.slug && (
                 <DetailLink
@@ -464,6 +527,11 @@ const ProductRecommendations: React.FC<Props> = ({
               <ActionButton onClick={() => onAddToCart(product)}>
                 Add to Cart
               </ActionButton>
+              {onSaveToLook && (
+                <ActionButton onClick={() => onSaveToLook(product)}>
+                  Save to Look
+                </ActionButton>
+              )}
               {isRealExternalUrl(product.purchase_url) && (
                 <PurchaseLink href={product.purchase_url} target="_blank" rel="noreferrer">
                   Buy Externally

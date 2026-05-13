@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { createBooking } from '../services/api';
+import { createBooking, getAnalysis, getSavedLooks } from '../services/api';
+import type { AnalysisResult, SavedLookRecord } from '../types/analysis';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -54,6 +55,38 @@ const ContextStrip = styled.div`
   line-height: 1.6;
   margin-bottom: var(--space-6);
   padding: var(--space-4);
+`;
+
+const BriefGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: var(--space-6);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const BriefItem = styled.div`
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-4);
+`;
+
+const BriefLabel = styled.span`
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-bottom: var(--space-1);
+`;
+
+const BriefValue = styled.strong`
+  color: var(--text-primary);
+  line-height: 1.4;
 `;
 
 const ContextTitle = styled.strong`
@@ -402,8 +435,53 @@ const Booking: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingId, setBookingId] = useState<string | null>(null);
   const [saveWarning, setSaveWarning] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [savedLooks, setSavedLooks] = useState<SavedLookRecord[]>([]);
+  const [selectedLookId, setSelectedLookId] = useState('');
+  const [userQuestions, setUserQuestions] = useState('');
 
   const selectedExpert = expertId ? experts[expertId as keyof typeof experts] : null;
+  const analysisId = localStorage.getItem('lastAnalysisId');
+  const selectedLook = useMemo(
+    () => savedLooks.find((look) => look.look_id === selectedLookId) || null,
+    [savedLooks, selectedLookId]
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadContext = async () => {
+      if (!analysisId) {
+        return;
+      }
+
+      try {
+        const [nextAnalysis, looksResponse] = await Promise.all([
+          getAnalysis(analysisId),
+          getSavedLooks(analysisId)
+        ]);
+
+        if (!isMounted) return;
+
+        setAnalysis(nextAnalysis.status === 'completed' ? nextAnalysis : null);
+        setSavedLooks(looksResponse.items);
+        if (looksResponse.items[0]) {
+          setSelectedLookId(looksResponse.items[0].look_id);
+        }
+      } catch {
+        if (isMounted) {
+          setAnalysis(null);
+          setSavedLooks([]);
+        }
+      }
+    };
+
+    void loadContext();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [analysisId]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
@@ -443,6 +521,9 @@ const Booking: React.FC = () => {
         session_type: formData.sessionType,
         add_ons: addOns,
         estimated_price: getEstimatedPrice(formData.duration, addOns).toFixed(2),
+        analysis_id: analysis?.analysis_id,
+        saved_look_id: selectedLook?.look_id,
+        user_questions: userQuestions || undefined,
         message: formData.message || undefined
       });
       setBookingId(booking.booking_id);
@@ -520,6 +601,18 @@ const Booking: React.FC = () => {
                 <span>Demo estimate</span>
                 <strong>${estimatedPrice.toFixed(2)}</strong>
               </ConfirmationItem>
+              {analysis && (
+                <ConfirmationItem>
+                  <span>Color profile</span>
+                  <strong>{analysis.season_result?.primary} · {analysis.attributes?.undertone}</strong>
+                </ConfirmationItem>
+              )}
+              {selectedLook && (
+                <ConfirmationItem>
+                  <span>Saved look</span>
+                  <strong>{selectedLook.name} ({selectedLook.products.length} products)</strong>
+                </ConfirmationItem>
+              )}
             </ConfirmationGrid>
             <PrepList>
               <li>Bring your latest ColorSnap result or upload a fresh photo before the session.</li>
@@ -551,6 +644,33 @@ const Booking: React.FC = () => {
           <ContextTitle>Expert support extends the same color-report journey.</ContextTitle>
           Bring your palette questions, product concerns, or wardrobe goals into a focused demo booking request.
         </ContextStrip>
+
+        {(analysis || savedLooks.length > 0) && (
+          <BriefGrid>
+            <BriefItem>
+              <BriefLabel>Color profile</BriefLabel>
+              <BriefValue>
+                {analysis?.season_result
+                  ? `${analysis.season_result.primary}${analysis.season_result.secondary ? ` / ${analysis.season_result.secondary}` : ''}`
+                  : 'No completed result attached'}
+              </BriefValue>
+            </BriefItem>
+            <BriefItem>
+              <BriefLabel>Attributes</BriefLabel>
+              <BriefValue>
+                {analysis?.attributes
+                  ? `${analysis.attributes.undertone}, ${analysis.attributes.saturation}, ${analysis.attributes.contrast} contrast`
+                  : 'No attributes attached'}
+              </BriefValue>
+            </BriefItem>
+            <BriefItem>
+              <BriefLabel>Saved look</BriefLabel>
+              <BriefValue>
+                {selectedLook ? `${selectedLook.name} · ${selectedLook.products.length} products` : 'No saved look selected'}
+              </BriefValue>
+            </BriefItem>
+          </BriefGrid>
+        )}
 
         <BookingLayout>
           <ExpertPanel>
@@ -708,6 +828,34 @@ const Booking: React.FC = () => {
                     <span>Demo consultation estimate</span>
                     <strong>${estimatedPrice.toFixed(2)}</strong>
                   </PricePreview>
+                </FullWidthGroup>
+
+                <FullWidthGroup>
+                  <Label htmlFor="savedLookId">Saved Look for Consultant</Label>
+                  <Select
+                    id="savedLookId"
+                    name="savedLookId"
+                    value={selectedLookId}
+                    onChange={(event) => setSelectedLookId(event.target.value)}
+                  >
+                    <option value="">No saved look</option>
+                    {savedLooks.map((look) => (
+                      <option key={look.look_id} value={look.look_id}>
+                        {look.name} ({look.products.length} products)
+                      </option>
+                    ))}
+                  </Select>
+                </FullWidthGroup>
+
+                <FullWidthGroup>
+                  <Label htmlFor="userQuestions">Questions for Consultant</Label>
+                  <TextArea
+                    id="userQuestions"
+                    name="userQuestions"
+                    value={userQuestions}
+                    onChange={(event) => setUserQuestions(event.target.value)}
+                    placeholder="Ask about your saved look, colors you are unsure about, or product swaps."
+                  />
                 </FullWidthGroup>
 
                 <FullWidthGroup>

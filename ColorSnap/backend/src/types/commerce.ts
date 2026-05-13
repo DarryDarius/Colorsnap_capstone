@@ -7,6 +7,8 @@ export type BookingAddOn = 'wardrobe_review' | 'makeup_audit';
 export type BookingRecord = {
   booking_id: string;
   user_id?: string;
+  analysis_id?: string;
+  saved_look_id?: string;
   status: 'requested';
   expert_id: string;
   expert_name: string;
@@ -20,6 +22,7 @@ export type BookingRecord = {
   session_type?: BookingSessionType;
   add_ons?: BookingAddOn[];
   estimated_price?: string;
+  user_questions?: string;
   message?: string;
   created_at: string;
 };
@@ -37,6 +40,10 @@ export type OrderItem = {
   quantity: number;
   retailerName?: string;
   purchaseUrl?: string;
+  analysisId?: string | null;
+  matchReason?: string;
+  matchScore?: number;
+  sourceLookId?: string;
 };
 
 export type OrderRecord = {

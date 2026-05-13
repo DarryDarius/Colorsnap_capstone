@@ -55,6 +55,7 @@ const StatefulRecommendations = () => {
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         onAddToCart={jest.fn()}
+        onSaveToLook={jest.fn()}
         analysisId="ana_test"
       />
     </BrowserRouter>
@@ -82,4 +83,25 @@ test('filters recommendations by retailer', () => {
 
   expect(screen.getByText('Rose Lipstick')).toBeInTheDocument();
   expect(screen.queryByText('Budget Blush')).not.toBeInTheDocument();
+});
+
+test('calls save to look from a product card', () => {
+  const onSaveToLook = jest.fn();
+
+  render(
+    <BrowserRouter>
+      <ProductRecommendations
+        products={products}
+        activeFilter="all"
+        onFilterChange={jest.fn()}
+        onAddToCart={jest.fn()}
+        onSaveToLook={onSaveToLook}
+        analysisId="ana_test"
+      />
+    </BrowserRouter>
+  );
+
+  fireEvent.click(screen.getAllByRole('button', { name: /save to look/i })[0]);
+
+  expect(onSaveToLook).toHaveBeenCalledWith(expect.objectContaining({ id: 'lip_001' }));
 });

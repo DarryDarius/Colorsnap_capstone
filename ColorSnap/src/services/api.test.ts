@@ -4,9 +4,15 @@ import {
   createDemoOrder,
   createSavedResult,
   createShare,
+  addProductToSavedLook,
+  deleteSavedLook,
+  getSavedLooks,
   getShare,
-  loginWithGoogle
+  loginWithGoogle,
+  saveBeautyPreferences,
+  updateSavedLook
 } from './api';
+import type { ProductRecommendation } from '../types/analysis';
 import type { CartItem } from '../utils/cart';
 
 const mockFetch = jest.fn();
@@ -235,4 +241,128 @@ test('loginWithGoogle posts the Google credential to the auth endpoint', async (
   expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
     credential: 'google-id-token'
   });
+});
+
+test('saveBeautyPreferences posts preference data and receives personalized products', async () => {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      preference: {
+        preference_id: 'pref_test',
+        analysis_id: 'ana_test',
+        makeup_style: 'natural',
+        budget_range: 'drugstore',
+        shopping_goal: 'lipstick',
+        preferred_finishes: ['satin'],
+        preferred_brands: ['NYX'],
+        avoid_colors: ['orange'],
+        created_at: '2026-04-18T00:00:00.000Z',
+        updated_at: '2026-04-18T00:00:00.000Z'
+      },
+      products: []
+    })
+  });
+
+  const response = await saveBeautyPreferences({
+    analysis_id: 'ana_test',
+    makeup_style: 'natural',
+    budget_range: 'drugstore',
+    shopping_goal: 'lipstick',
+    preferred_finishes: ['satin'],
+    preferred_brands: ['NYX'],
+    avoid_colors: ['orange']
+  });
+
+  expect(response.preference.preference_id).toBe('pref_test');
+  expect(mockFetch).toHaveBeenCalledWith('/api/v1/preferences', expect.objectContaining({
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }));
+  expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+    analysis_id: 'ana_test',
+    makeup_style: 'natural',
+    budget_range: 'drugstore',
+    shopping_goal: 'lipstick',
+    preferred_finishes: ['satin'],
+    preferred_brands: ['NYX'],
+    avoid_colors: ['orange']
+  });
+});
+
+test('saved look helpers call the saved look API', async () => {
+  const product: ProductRecommendation = {
+    id: 'lip_001',
+    slug: 'rose-lipstick',
+    name: 'Rose Lipstick',
+    brand: 'Example Beauty',
+    category: 'lipstick',
+    shade: 'Rose',
+    image: '/images/pd1.jpg',
+    short_description: 'A rose lipstick.',
+    reason: 'Matches a soft palette.',
+    url: '/products/rose-lipstick',
+    purchase_url: 'https://www.sephora.com/product/rose-lipstick',
+    score: 88,
+    price: '25.00',
+    currency: 'USD',
+    best_for: ['Soft Autumn'],
+    retailer_name: 'Sephora',
+    badges: ['Soft Autumn']
+  };
+
+  mockFetch
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        look_id: 'look_test',
+        analysis_id: 'ana_test',
+        name: 'Personalized Color Look',
+        occasion: 'Everyday',
+        products: [product],
+        created_at: '2026-04-18T00:00:00.000Z',
+        updated_at: '2026-04-18T00:00:00.000Z'
+      })
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ items: [] })
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        look_id: 'look_test',
+        analysis_id: 'ana_test',
+        name: 'Work Look',
+        occasion: 'Office',
+        products: [product],
+        created_at: '2026-04-18T00:00:00.000Z',
+        updated_at: '2026-04-18T00:00:00.000Z'
+      })
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({})
+    });
+
+  await addProductToSavedLook({ analysis_id: 'ana_test', product });
+  await getSavedLooks('ana_test');
+  await updateSavedLook('look_test', { name: 'Work Look', occasion: 'Office' });
+  await deleteSavedLook('look_test');
+
+  expect(mockFetch).toHaveBeenNthCalledWith(1, '/api/v1/saved-looks/products', expect.objectContaining({
+    method: 'POST'
+  }));
+  expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+    analysis_id: 'ana_test',
+    product: expect.objectContaining({ id: 'lip_001' })
+  });
+  expect(mockFetch).toHaveBeenNthCalledWith(2, '/api/v1/saved-looks?analysis_id=ana_test', expect.any(Object));
+  expect(mockFetch).toHaveBeenNthCalledWith(3, '/api/v1/saved-looks/look_test', expect.objectContaining({
+    method: 'PATCH'
+  }));
+  expect(mockFetch).toHaveBeenNthCalledWith(4, '/api/v1/saved-looks/look_test', expect.objectContaining({
+    method: 'DELETE'
+  }));
 });

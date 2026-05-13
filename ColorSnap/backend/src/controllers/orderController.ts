@@ -39,7 +39,11 @@ const normalizeOrderItem = (value: unknown): OrderItem => {
     image: getString(record.image) || undefined,
     quantity,
     retailerName: getString(record.retailerName) || undefined,
-    purchaseUrl: getString(record.purchaseUrl) || undefined
+    purchaseUrl: getString(record.purchaseUrl) || undefined,
+    analysisId: getString(record.analysisId) || null,
+    matchReason: getString(record.matchReason) || undefined,
+    matchScore: typeof record.matchScore === 'number' && Number.isFinite(record.matchScore) ? record.matchScore : undefined,
+    sourceLookId: getString(record.sourceLookId) || undefined
   };
 };
 

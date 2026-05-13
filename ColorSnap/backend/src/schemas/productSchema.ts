@@ -62,6 +62,13 @@ export const validateProducts = (products: Product[]) => {
       throw new Error(`Product ${product.id} is missing descriptive copy.`);
     }
 
+    if (
+      product.tags &&
+      (!Array.isArray(product.tags) || product.tags.some((tag) => typeof tag !== 'string' || tag.trim() === ''))
+    ) {
+      throw new Error(`Product ${product.id} has invalid tags.`);
+    }
+
     if (!product.retailer?.name || !product.retailer?.url) {
       throw new Error(`Product ${product.id} is missing retailer metadata.`);
     }

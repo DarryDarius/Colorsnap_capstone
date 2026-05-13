@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { createBookingRecord, getBookingRecord } from '../services/storageService';
+import { createBookingRecord, getAnalysis, getBookingRecord, getSavedLookRecord } from '../services/storageService';
 import type { BookingAddOn, BookingDuration, BookingSessionType } from '../types/commerce';
 import { ApiError, toErrorResponse } from '../utils/errors';
 
@@ -57,8 +57,32 @@ export const createBooking = async (req: Request, res: Response) => {
       throw new ApiError(400, 'INVALID_BOOKING', 'session_type must be video, in_person, or written_review.');
     }
 
+    const analysisId = getString(body.analysis_id) || undefined;
+    if (analysisId) {
+      const analysis = await getAnalysis(analysisId);
+
+      if (!analysis || analysis.status !== 'completed') {
+        throw new ApiError(400, 'INVALID_BOOKING', 'analysis_id must reference a completed analysis.');
+      }
+    }
+
+    const savedLookId = getString(body.saved_look_id) || undefined;
+    if (savedLookId) {
+      const savedLook = await getSavedLookRecord(savedLookId);
+
+      if (!savedLook) {
+        throw new ApiError(400, 'INVALID_BOOKING', 'saved_look_id must reference an existing saved look.');
+      }
+
+      if (savedLook.user_id && savedLook.user_id !== req.user?.id) {
+        throw new ApiError(403, 'BOOKING_FORBIDDEN', 'You do not have access to this saved look.');
+      }
+    }
+
     const booking = await createBookingRecord({
       user_id: req.user?.id,
+      analysis_id: analysisId,
+      saved_look_id: savedLookId,
       expert_id: ensureRequiredString(body, 'expert_id'),
       expert_name: ensureRequiredString(body, 'expert_name'),
       name: ensureRequiredString(body, 'name'),
@@ -71,6 +95,7 @@ export const createBooking = async (req: Request, res: Response) => {
       session_type: sessionType as BookingSessionType | undefined,
       add_ons: getOptionalStringList(body, 'add_ons', addOns) as BookingAddOn[] | undefined,
       estimated_price: getString(body.estimated_price) || undefined,
+      user_questions: getString(body.user_questions) || undefined,
       message: getString(body.message) || undefined
     });
 

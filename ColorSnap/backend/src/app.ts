@@ -5,8 +5,10 @@ import bookingsRouter from './routes/bookings';
 import healthRouter from './routes/health';
 import meRouter from './routes/me';
 import ordersRouter from './routes/orders';
+import preferencesRouter from './routes/preferences';
 import productsRouter from './routes/products';
 import savedResultsRouter from './routes/savedResults';
+import savedLooksRouter from './routes/savedLooks';
 import sharesRouter from './routes/shares';
 
 const app = express();
@@ -32,8 +34,10 @@ app.use('/api/v1/me', meRouter);
 app.use('/api/v1/analyses', analysesRouter);
 app.use('/api/v1/bookings', bookingsRouter);
 app.use('/api/v1/orders', ordersRouter);
+app.use('/api/v1/preferences', preferencesRouter);
 app.use('/api/v1/products', productsRouter);
 app.use('/api/v1/saved-results', savedResultsRouter);
+app.use('/api/v1/saved-looks', savedLooksRouter);
 app.use('/api/v1/shares', sharesRouter);
 
 app.use((_req, res) => {

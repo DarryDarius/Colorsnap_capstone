@@ -7,6 +7,7 @@ const {
   emptyFailedScores,
   getTopCandidateSeasons,
   gradeCase,
+  mergeRecommendationScores,
   renderMarkdownReport,
   summarizeCases
 } = require('./graders');
@@ -147,7 +148,17 @@ const loadAnalyzeImage = () => {
   return require(servicePath).analyzeImage;
 };
 
-const runCase = async (item, analyzeImage, mode) => {
+const loadProductRecommendations = () => {
+  const servicePath = path.join(BACKEND_ROOT, 'dist', 'services', 'productRecommendationService.js');
+
+  if (!fs.existsSync(servicePath)) {
+    throw new Error('Missing dist/services/productRecommendationService.js. Run "npm run build" from ColorSnap/backend first.');
+  }
+
+  return require(servicePath).getProductRecommendations;
+};
+
+const runCase = async (item, analyzeImage, getProductRecommendations, mode) => {
   const absoluteImagePath = path.resolve(EVAL_ROOT, item.image_path);
   const buffer = fs.readFileSync(absoluteImagePath);
   const startedAt = performance.now();
@@ -164,8 +175,16 @@ const runCase = async (item, analyzeImage, mode) => {
 
   try {
     const analysis = await analyzeImage(image);
+    const products = analysis.season_result && analysis.attributes
+      ? getProductRecommendations({
+        primarySeason: analysis.season_result.primary,
+        secondarySeason: analysis.season_result.secondary,
+        attributes: analysis.attributes,
+        limit: 16
+      })
+      : [];
     const latencyMs = Math.round(performance.now() - startedAt);
-    const scores = gradeCase(item, analysis, true);
+    const scores = mergeRecommendationScores(gradeCase(item, analysis, true), products);
 
     return {
       id: item.id,
@@ -189,7 +208,15 @@ const runCase = async (item, analyzeImage, mode) => {
         attributes: analysis.attributes || null,
         image_quality: analysis.image_quality || null,
         top_candidates: getTopCandidateSeasons(analysis).slice(0, 4),
-        critic: analysis.critic || null
+        critic: analysis.critic || null,
+        products: products.slice(0, 5).map((product) => ({
+          id: product.id,
+          name: product.name,
+          category: product.category,
+          score: product.score,
+          reason: product.reason,
+          match_reasons: product.match_reasons || []
+        }))
       },
       scores
     };
@@ -216,12 +243,13 @@ const main = async () => {
   process.env.MOCK_AI = args.mode === 'mock' ? 'true' : 'false';
 
   const analyzeImage = loadAnalyzeImage();
+  const getProductRecommendations = loadProductRecommendations();
   const allItems = readJsonlDataset(args.dataset);
   const items = args.limit ? allItems.slice(0, args.limit) : allItems;
   const cases = [];
 
   for (const item of items) {
-    cases.push(await runCase(item, analyzeImage, args.mode));
+    cases.push(await runCase(item, analyzeImage, getProductRecommendations, args.mode));
   }
 
   const report = {

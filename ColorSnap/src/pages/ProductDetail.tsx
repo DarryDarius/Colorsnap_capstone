@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { getProductDetail } from '../services/api';
+import { addProductToSavedLook, getProductDetail } from '../services/api';
 import type { ProductDetail as ProductDetailType, ProductRecommendation } from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
 import { formatLabel, isRealExternalUrl } from '../utils/formatters';
@@ -330,6 +330,46 @@ const ProductDetail: React.FC = () => {
     window.alert(`${item.name} is in your cart (${cartItem.quantity}).`);
   };
 
+  const handleSaveToLook = async (item: ProductDetailType) => {
+    if (!analysisId) {
+      window.alert('Open this product from an analysis result before saving it to a look.');
+      return;
+    }
+
+    const productForLook: ProductRecommendation = {
+      id: item.id,
+      slug: item.slug,
+      name: item.name,
+      brand: item.brand,
+      category: item.category,
+      shade: item.shade,
+      image: item.image,
+      short_description: item.short_description,
+      reason: item.why_it_matches_you,
+      url: `/products/${item.slug}`,
+      purchase_url: item.retailer.url,
+      score: 0,
+      price: item.price,
+      currency: item.currency,
+      finish: item.finish,
+      intensity: item.intensity,
+      best_for: item.best_for,
+      retailer_name: item.retailer.name,
+      badges: item.best_for,
+      match_summary: item.why_it_matches_you
+    };
+
+    try {
+      const look = await addProductToSavedLook({
+        analysis_id: analysisId,
+        product: productForLook
+      });
+      window.alert(`${item.name} saved to ${look.name}.`);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Unable to save this product to a look.');
+    }
+  };
+
   const hasPurchaseUrl = isRealExternalUrl(product?.retailer.url);
 
   if (isLoading) {
@@ -427,7 +467,9 @@ const ProductDetail: React.FC = () => {
 
             <ActionRow>
               <ActionButton onClick={() => handleAddToCart(product)}>Add to Cart</ActionButton>
+              <ActionButton onClick={() => handleSaveToLook(product)}>Save to Look</ActionButton>
               <SecondaryLink to="/shopping-cart">View Cart</SecondaryLink>
+              <SecondaryLink to="/saved-looks">View Saved Looks</SecondaryLink>
               {hasPurchaseUrl && (
                 <PurchaseLink href={product.retailer.url} target="_blank" rel="noreferrer">
                   Buy from {product.retailer.name}

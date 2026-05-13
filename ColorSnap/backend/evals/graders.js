@@ -87,6 +87,57 @@ const gradeCase = (item, analysis, schemaValid) => {
   };
 };
 
+const genericPhrases = [
+  'enhances your features',
+  'suits your palette',
+  'perfect for you',
+  'matches your style',
+  'looks great'
+];
+
+const getRecommendationScores = (products) => {
+  if (!Array.isArray(products) || products.length === 0) {
+    return {
+      product_score_valid: false,
+      recommendation_relevance_score: 0,
+      recommendation_reason_specificity_score: 0,
+      recommendation_category_coverage_score: 0,
+      generic_language_rate: 1
+    };
+  }
+
+  const validScores = products.every((product) => (
+    typeof product.score === 'number' &&
+    product.score >= 0 &&
+    product.score <= 100
+  ));
+  const averageScore = average(products.map((product) => Math.max(0, Math.min(product.score || 0, 100)) / 100));
+  const specificReasons = products.filter((product) => {
+    const reasons = Array.isArray(product.match_reasons) ? product.match_reasons : [];
+    const reasonText = [product.reason, product.match_summary, ...reasons].filter(Boolean).join(' ').toLowerCase();
+    return reasons.length >= 2 &&
+      ['undertone', 'saturation', 'brightness', 'contrast', 'season'].filter((term) => reasonText.includes(term)).length >= 2;
+  });
+  const genericReasons = products.filter((product) => {
+    const reasonText = [product.reason, product.match_summary].filter(Boolean).join(' ').toLowerCase();
+    return genericPhrases.some((phrase) => reasonText.includes(phrase));
+  });
+  const categories = new Set(products.map((product) => product.category));
+
+  return {
+    product_score_valid: validScores,
+    recommendation_relevance_score: averageScore,
+    recommendation_reason_specificity_score: roundMetric(specificReasons.length / products.length),
+    recommendation_category_coverage_score: roundMetric(Math.min(categories.size / 5, 1)),
+    generic_language_rate: roundMetric(genericReasons.length / products.length)
+  };
+};
+
+const mergeRecommendationScores = (scores, products) => ({
+  ...scores,
+  ...getRecommendationScores(products)
+});
+
 const emptyFailedScores = (item) => ({
   schema_valid: false,
   quality_gate_match: item.quality_label === 'blocked',
@@ -124,6 +175,11 @@ const summarizeCases = (cases) => {
     saturation_accuracy: averageBooleanMetric(cases, 'saturation_match'),
     contrast_accuracy: averageBooleanMetric(cases, 'contrast_match'),
     confidence_calibration_score: average(confidenceScores),
+    product_score_valid_rate: averageBooleanMetric(cases, 'product_score_valid'),
+    recommendation_relevance_score: average(cases.map((item) => item.scores.recommendation_relevance_score || 0)),
+    recommendation_reason_specificity_score: average(cases.map((item) => item.scores.recommendation_reason_specificity_score || 0)),
+    recommendation_category_coverage_score: average(cases.map((item) => item.scores.recommendation_category_coverage_score || 0)),
+    generic_language_rate: average(cases.map((item) => item.scores.generic_language_rate ?? 1)),
     average_latency_ms: cases.length === 0
       ? 0
       : Math.round(cases.reduce((sum, item) => sum + item.latency_ms, 0) / cases.length),
@@ -150,6 +206,11 @@ const renderMarkdownReport = (report) => {
     ['Saturation accuracy', formatPercent(report.metrics.saturation_accuracy)],
     ['Contrast accuracy', formatPercent(report.metrics.contrast_accuracy)],
     ['Confidence calibration score', formatPercent(report.metrics.confidence_calibration_score)],
+    ['Product score valid rate', formatPercent(report.metrics.product_score_valid_rate)],
+    ['Recommendation relevance score', formatPercent(report.metrics.recommendation_relevance_score)],
+    ['Recommendation reason specificity', formatPercent(report.metrics.recommendation_reason_specificity_score)],
+    ['Recommendation category coverage', formatPercent(report.metrics.recommendation_category_coverage_score)],
+    ['Generic language rate', formatPercent(report.metrics.generic_language_rate)],
     ['Average latency', `${report.metrics.average_latency_ms} ms`],
     ['Failed cases', String(report.metrics.failed_case_count)]
   ];
@@ -187,6 +248,7 @@ module.exports = {
   emptyFailedScores,
   getTopCandidateSeasons,
   gradeCase,
+  mergeRecommendationScores,
   renderMarkdownReport,
   summarizeCases
 };

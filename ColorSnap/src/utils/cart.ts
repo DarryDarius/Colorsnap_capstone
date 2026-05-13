@@ -23,6 +23,8 @@ export type CartItem = {
   addedAt: string;
   analysisId?: string | null;
   matchReason?: string;
+  matchScore?: number;
+  sourceLookId?: string;
   retailerName?: string;
   purchaseUrl?: string;
 };
@@ -72,6 +74,8 @@ const normalizeCartItem = (value: unknown): CartItem | null => {
     addedAt: getString(value.addedAt, new Date().toISOString()),
     analysisId: getString(value.analysisId) || null,
     matchReason: getString(value.matchReason) || undefined,
+    matchScore: typeof value.matchScore === 'number' ? value.matchScore : undefined,
+    sourceLookId: getString(value.sourceLookId) || undefined,
     retailerName: getString(value.retailerName) || undefined,
     purchaseUrl: getString(value.purchaseUrl) || undefined
   };
@@ -119,6 +123,7 @@ export const createCartItem = (
     analysisId?: string | null;
     description?: string;
     source?: CartItem['source'];
+    sourceLookId?: string;
   } = {}
 ): CartItem => ({
   id: product.id,
@@ -136,6 +141,8 @@ export const createCartItem = (
   addedAt: new Date().toISOString(),
   analysisId: options.analysisId || null,
   matchReason: getProductReason(product),
+  matchScore: 'score' in product ? product.score : undefined,
+  sourceLookId: options.sourceLookId,
   retailerName: getProductRetailerName(product),
   purchaseUrl: getProductPurchaseUrl(product)
 });
@@ -146,6 +153,7 @@ export const addProductToCart = (
     analysisId?: string | null;
     description?: string;
     source?: CartItem['source'];
+    sourceLookId?: string;
   } = {}
 ) => {
   const nextItem = createCartItem(product, options);

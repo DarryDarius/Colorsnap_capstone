@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import type { AnalysisFeedback, AnalysisResult } from '../types/analysis';
+import type { AnalysisFeedback, AnalysisResult, BeautyPreferenceRecord, ProductRecommendation, SavedLookRecord } from '../types/analysis';
 import type { BookingRecord, OrderRecord } from '../types/commerce';
 import type { SavedResultRecord, ShareRecord } from '../types/share';
 
@@ -16,6 +16,14 @@ fs.mkdirSync(storageDirectory, { recursive: true });
 
 const prisma = new PrismaClient();
 let schemaReadyPromise: Promise<void> | null = null;
+
+const addColumnIfMissing = async (table: string, column: string, definition: string) => {
+  const rows = await prisma.$queryRawUnsafe<Array<{ name: string }>>(`PRAGMA table_info("${table}")`);
+
+  if (!rows.some((row) => row.name === column)) {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${definition}`);
+  }
+};
 
 const createRecordId = (prefix: string) => {
   const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
@@ -89,6 +97,34 @@ export const ensureDatabaseReady = async () => {
         )
       `);
       await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "BeautyPreference" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "analysisId" TEXT NOT NULL UNIQUE,
+          "makeupStyle" TEXT NOT NULL,
+          "budgetRange" TEXT NOT NULL,
+          "shoppingGoal" TEXT NOT NULL,
+          "preferredFinishesJson" TEXT NOT NULL,
+          "preferredBrandsJson" TEXT NOT NULL,
+          "avoidColorsJson" TEXT NOT NULL,
+          "createdAt" TEXT NOT NULL,
+          "updatedAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "SavedLook" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "analysisId" TEXT NOT NULL,
+          "name" TEXT NOT NULL,
+          "occasion" TEXT NOT NULL,
+          "productsJson" TEXT NOT NULL,
+          "notes" TEXT,
+          "createdAt" TEXT NOT NULL,
+          "updatedAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "SavedResult" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "userId" TEXT,
@@ -127,6 +163,8 @@ export const ensureDatabaseReady = async () => {
         CREATE TABLE IF NOT EXISTS "Booking" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "userId" TEXT,
+          "analysisId" TEXT,
+          "savedLookId" TEXT,
           "expertId" TEXT NOT NULL,
           "expertName" TEXT NOT NULL,
           "name" TEXT NOT NULL,
@@ -136,6 +174,7 @@ export const ensureDatabaseReady = async () => {
           "time" TEXT NOT NULL,
           "duration" TEXT NOT NULL,
           "message" TEXT,
+          "userQuestions" TEXT,
           "status" TEXT NOT NULL,
           "createdAt" TEXT NOT NULL
         )
@@ -167,9 +206,20 @@ export const ensureDatabaseReady = async () => {
           "image" TEXT,
           "quantity" INTEGER NOT NULL,
           "retailerName" TEXT,
-          "purchaseUrl" TEXT
+          "purchaseUrl" TEXT,
+          "analysisId" TEXT,
+          "matchReason" TEXT,
+          "matchScore" INTEGER,
+          "sourceLookId" TEXT
         )
       `);
+      await addColumnIfMissing('Booking', 'analysisId', 'TEXT');
+      await addColumnIfMissing('Booking', 'savedLookId', 'TEXT');
+      await addColumnIfMissing('Booking', 'userQuestions', 'TEXT');
+      await addColumnIfMissing('OrderItem', 'analysisId', 'TEXT');
+      await addColumnIfMissing('OrderItem', 'matchReason', 'TEXT');
+      await addColumnIfMissing('OrderItem', 'matchScore', 'INTEGER');
+      await addColumnIfMissing('OrderItem', 'sourceLookId', 'TEXT');
     })();
   }
 
@@ -182,6 +232,32 @@ type SavedResultRow = Awaited<ReturnType<typeof prisma.savedResult.findUnique>>;
 type ShareRow = Awaited<ReturnType<typeof prisma.shareRecord.findUnique>>;
 type BookingRow = Awaited<ReturnType<typeof prisma.booking.findUnique>>;
 type OrderRow = Awaited<ReturnType<typeof prisma.order.findUnique>>;
+
+type BeautyPreferenceRow = {
+  id: string;
+  userId: string | null;
+  analysisId: string;
+  makeupStyle: string;
+  budgetRange: string;
+  shoppingGoal: string;
+  preferredFinishesJson: string;
+  preferredBrandsJson: string;
+  avoidColorsJson: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type SavedLookRow = {
+  id: string;
+  userId: string | null;
+  analysisId: string;
+  name: string;
+  occasion: string;
+  productsJson: string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 const toAnalysisResult = (row: NonNullable<AnalysisRow>): AnalysisResult => ({
   analysis_id: row.id,
@@ -210,6 +286,32 @@ const toFeedbackRecord = (row: NonNullable<FeedbackRow>): AnalysisFeedback => ({
   issue_tags: parseJson<AnalysisFeedback['issue_tags']>(row.issueTagsJson) || [],
   user_note: row.userNote || undefined,
   created_at: row.createdAt
+});
+
+const toBeautyPreferenceRecord = (row: BeautyPreferenceRow): BeautyPreferenceRecord => ({
+  preference_id: row.id,
+  user_id: row.userId || undefined,
+  analysis_id: row.analysisId,
+  makeup_style: row.makeupStyle as BeautyPreferenceRecord['makeup_style'],
+  budget_range: row.budgetRange as BeautyPreferenceRecord['budget_range'],
+  shopping_goal: row.shoppingGoal as BeautyPreferenceRecord['shopping_goal'],
+  preferred_finishes: parseJson<BeautyPreferenceRecord['preferred_finishes']>(row.preferredFinishesJson) || [],
+  preferred_brands: parseJson<BeautyPreferenceRecord['preferred_brands']>(row.preferredBrandsJson) || [],
+  avoid_colors: parseJson<BeautyPreferenceRecord['avoid_colors']>(row.avoidColorsJson) || [],
+  created_at: row.createdAt,
+  updated_at: row.updatedAt
+});
+
+const toSavedLookRecord = (row: SavedLookRow): SavedLookRecord => ({
+  look_id: row.id,
+  user_id: row.userId || undefined,
+  analysis_id: row.analysisId,
+  name: row.name,
+  occasion: row.occasion,
+  products: parseJson<ProductRecommendation[]>(row.productsJson) || [],
+  notes: row.notes || undefined,
+  created_at: row.createdAt,
+  updated_at: row.updatedAt
 });
 
 const toSavedResultRecord = (row: NonNullable<SavedResultRow>): SavedResultRecord => ({
@@ -246,6 +348,8 @@ const toShareRecord = (row: NonNullable<ShareRow>): ShareRecord => ({
 const toBookingRecord = (row: NonNullable<BookingRow>): BookingRecord => ({
   booking_id: row.id,
   user_id: row.userId || undefined,
+  analysis_id: row.analysisId || undefined,
+  saved_look_id: row.savedLookId || undefined,
   expert_id: row.expertId,
   expert_name: row.expertName,
   name: row.name,
@@ -254,6 +358,7 @@ const toBookingRecord = (row: NonNullable<BookingRow>): BookingRecord => ({
   date: row.date,
   time: row.time,
   duration: row.duration as BookingRecord['duration'],
+  user_questions: row.userQuestions || undefined,
   message: row.message || undefined,
   status: 'requested',
   created_at: row.createdAt
@@ -272,6 +377,10 @@ const toOrderRecord = (row: NonNullable<OrderRow> & { items?: Array<{
   quantity: number;
   retailerName: string | null;
   purchaseUrl: string | null;
+  analysisId: string | null;
+  matchReason: string | null;
+  matchScore: number | null;
+  sourceLookId: string | null;
 }> }): OrderRecord => ({
   order_id: row.id,
   user_id: row.userId || undefined,
@@ -293,7 +402,11 @@ const toOrderRecord = (row: NonNullable<OrderRow> & { items?: Array<{
     image: item.image || undefined,
     quantity: item.quantity,
     retailerName: item.retailerName || undefined,
-    purchaseUrl: item.purchaseUrl || undefined
+    purchaseUrl: item.purchaseUrl || undefined,
+    analysisId: item.analysisId || null,
+    matchReason: item.matchReason || undefined,
+    matchScore: item.matchScore || undefined,
+    sourceLookId: item.sourceLookId || undefined
   }))
 });
 
@@ -362,6 +475,22 @@ export const completeAnalysis = async (
   return toAnalysisResult(completed);
 };
 
+export const updateAnalysisProducts = async (
+  analysisId: string,
+  products: NonNullable<AnalysisResult['products']>
+) => {
+  await ensureDatabaseReady();
+  const updated = await prisma.analysis.update({
+    where: { id: analysisId },
+    data: {
+      productsJson: stringify(products),
+      updatedAt: nowIso()
+    }
+  });
+
+  return toAnalysisResult(updated);
+};
+
 export const failAnalysis = async (analysisId: string, code: string, message: string) => {
   await ensureDatabaseReady();
   const current = await prisma.analysis.findUnique({
@@ -396,6 +525,8 @@ export const createBookingRecord = async (
     data: {
       id: createRecordId('book'),
       userId: input.user_id || null,
+      analysisId: input.analysis_id || null,
+      savedLookId: input.saved_look_id || null,
       expertId: input.expert_id,
       expertName: input.expert_name,
       name: input.name,
@@ -405,6 +536,7 @@ export const createBookingRecord = async (
       time: input.time,
       duration: input.duration,
       message: input.message || null,
+      userQuestions: input.user_questions || null,
       status: 'requested',
       createdAt: nowIso()
     }
@@ -450,7 +582,11 @@ export const createOrderRecord = async (
           image: item.image || null,
           quantity: item.quantity,
           retailerName: item.retailerName || null,
-          purchaseUrl: item.purchaseUrl || null
+          purchaseUrl: item.purchaseUrl || null,
+          analysisId: item.analysisId || null,
+          matchReason: item.matchReason || null,
+          matchScore: item.matchScore || null,
+          sourceLookId: item.sourceLookId || null
         }))
       }
     },
@@ -613,6 +749,197 @@ export const getAnalysisFeedbackRecords = async (analysisId: string) => {
   });
 
   return feedback.map(toFeedbackRecord);
+};
+
+export const createOrUpdateBeautyPreferenceRecord = async (
+  input: Omit<BeautyPreferenceRecord, 'preference_id' | 'created_at' | 'updated_at'>
+) => {
+  await ensureDatabaseReady();
+  const existing = await prisma.$queryRawUnsafe<BeautyPreferenceRow[]>(
+    'SELECT * FROM "BeautyPreference" WHERE "analysisId" = ? LIMIT 1',
+    input.analysis_id
+  );
+  const timestamp = nowIso();
+
+  if (existing[0]) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "BeautyPreference"
+       SET "userId" = ?, "makeupStyle" = ?, "budgetRange" = ?, "shoppingGoal" = ?,
+           "preferredFinishesJson" = ?, "preferredBrandsJson" = ?, "avoidColorsJson" = ?, "updatedAt" = ?
+       WHERE "analysisId" = ?`,
+      input.user_id || null,
+      input.makeup_style,
+      input.budget_range,
+      input.shopping_goal,
+      stringify(input.preferred_finishes),
+      stringify(input.preferred_brands),
+      stringify(input.avoid_colors),
+      timestamp,
+      input.analysis_id
+    );
+  } else {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "BeautyPreference"
+       ("id", "userId", "analysisId", "makeupStyle", "budgetRange", "shoppingGoal",
+        "preferredFinishesJson", "preferredBrandsJson", "avoidColorsJson", "createdAt", "updatedAt")
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      createRecordId('pref'),
+      input.user_id || null,
+      input.analysis_id,
+      input.makeup_style,
+      input.budget_range,
+      input.shopping_goal,
+      stringify(input.preferred_finishes),
+      stringify(input.preferred_brands),
+      stringify(input.avoid_colors),
+      timestamp,
+      timestamp
+    );
+  }
+
+  const rows = await prisma.$queryRawUnsafe<BeautyPreferenceRow[]>(
+    'SELECT * FROM "BeautyPreference" WHERE "analysisId" = ? LIMIT 1',
+    input.analysis_id
+  );
+
+  if (!rows[0]) {
+    throw new Error('Beauty preference could not be saved.');
+  }
+
+  return toBeautyPreferenceRecord(rows[0]);
+};
+
+export const getBeautyPreferenceRecord = async (analysisId: string) => {
+  await ensureDatabaseReady();
+  const rows = await prisma.$queryRawUnsafe<BeautyPreferenceRow[]>(
+    'SELECT * FROM "BeautyPreference" WHERE "analysisId" = ? LIMIT 1',
+    analysisId
+  );
+
+  return rows[0] ? toBeautyPreferenceRecord(rows[0]) : null;
+};
+
+export const createSavedLookRecord = async (
+  input: Omit<SavedLookRecord, 'look_id' | 'created_at' | 'updated_at'>
+) => {
+  await ensureDatabaseReady();
+  const timestamp = nowIso();
+  const id = createRecordId('look');
+
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "SavedLook"
+     ("id", "userId", "analysisId", "name", "occasion", "productsJson", "notes", "createdAt", "updatedAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    input.user_id || null,
+    input.analysis_id,
+    input.name,
+    input.occasion,
+    stringify(input.products),
+    input.notes || null,
+    timestamp,
+    timestamp
+  );
+
+  const rows = await prisma.$queryRawUnsafe<SavedLookRow[]>(
+    'SELECT * FROM "SavedLook" WHERE "id" = ? LIMIT 1',
+    id
+  );
+
+  return toSavedLookRecord(rows[0]);
+};
+
+export const getSavedLookRecord = async (lookId: string) => {
+  await ensureDatabaseReady();
+  const rows = await prisma.$queryRawUnsafe<SavedLookRow[]>(
+    'SELECT * FROM "SavedLook" WHERE "id" = ? LIMIT 1',
+    lookId
+  );
+
+  return rows[0] ? toSavedLookRecord(rows[0]) : null;
+};
+
+export const listSavedLookRecords = async (input: { userId?: string | null; analysisId?: string | null }) => {
+  await ensureDatabaseReady();
+  const rows = input.analysisId
+    ? await prisma.$queryRawUnsafe<SavedLookRow[]>(
+      'SELECT * FROM "SavedLook" WHERE "analysisId" = ? ORDER BY "updatedAt" DESC',
+      input.analysisId
+    )
+    : input.userId
+      ? await prisma.$queryRawUnsafe<SavedLookRow[]>(
+        'SELECT * FROM "SavedLook" WHERE "userId" = ? ORDER BY "updatedAt" DESC',
+        input.userId
+      )
+      : await prisma.$queryRawUnsafe<SavedLookRow[]>(
+        'SELECT * FROM "SavedLook" ORDER BY "updatedAt" DESC LIMIT 20'
+      );
+
+  return rows.map(toSavedLookRecord);
+};
+
+export const updateSavedLookRecord = async (
+  lookId: string,
+  input: Partial<Pick<SavedLookRecord, 'name' | 'occasion' | 'products' | 'notes'>>
+) => {
+  await ensureDatabaseReady();
+  const current = await getSavedLookRecord(lookId);
+
+  if (!current) return null;
+
+  await prisma.$executeRawUnsafe(
+    `UPDATE "SavedLook"
+     SET "name" = ?, "occasion" = ?, "productsJson" = ?, "notes" = ?, "updatedAt" = ?
+     WHERE "id" = ?`,
+    input.name || current.name,
+    input.occasion || current.occasion,
+    stringify(input.products || current.products),
+    input.notes === undefined ? current.notes || null : input.notes || null,
+    nowIso(),
+    lookId
+  );
+
+  return getSavedLookRecord(lookId);
+};
+
+export const deleteSavedLookRecord = async (lookId: string) => {
+  await ensureDatabaseReady();
+  await prisma.$executeRawUnsafe('DELETE FROM "SavedLook" WHERE "id" = ?', lookId);
+};
+
+export const addProductToDefaultSavedLook = async (
+  input: {
+    userId?: string | null;
+    analysisId: string;
+    product: ProductRecommendation;
+  }
+) => {
+  await ensureDatabaseReady();
+  const existingRows = await prisma.$queryRawUnsafe<SavedLookRow[]>(
+    'SELECT * FROM "SavedLook" WHERE "analysisId" = ? AND "name" = ? LIMIT 1',
+    input.analysisId,
+    'Personalized Color Look'
+  );
+  const existing = existingRows[0] ? toSavedLookRecord(existingRows[0]) : null;
+
+  if (!existing) {
+    return createSavedLookRecord({
+      user_id: input.userId || undefined,
+      analysis_id: input.analysisId,
+      name: 'Personalized Color Look',
+      occasion: 'Everyday',
+      products: [input.product],
+      notes: 'Built from ColorSnap personalized recommendations.'
+    });
+  }
+
+  const nextProducts = existing.products.some((product) => product.id === input.product.id)
+    ? existing.products.map((product) => (product.id === input.product.id ? input.product : product))
+    : [...existing.products, input.product];
+
+  return updateSavedLookRecord(existing.look_id, {
+    products: nextProducts
+  }) as Promise<SavedLookRecord>;
 };
 
 export const disconnectStorage = async () => prisma.$disconnect();

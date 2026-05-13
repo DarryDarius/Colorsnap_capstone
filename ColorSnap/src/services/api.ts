@@ -1,4 +1,13 @@
-import type { AnalysisFeedback, AnalysisResult, CreateAnalysisResponse, ProductDetail } from '../types/analysis';
+import type {
+  AnalysisFeedback,
+  AnalysisResult,
+  BeautyPreferenceInput,
+  BeautyPreferenceRecord,
+  CreateAnalysisResponse,
+  ProductDetail,
+  ProductRecommendation,
+  SavedLookRecord
+} from '../types/analysis';
 import type { CartItem } from '../utils/cart';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
@@ -15,6 +24,8 @@ export type BackendHealth = {
 export type BookingRequest = {
   expert_id: string;
   expert_name: string;
+  analysis_id?: string;
+  saved_look_id?: string;
   name: string;
   email: string;
   phone?: string;
@@ -25,6 +36,7 @@ export type BookingRequest = {
   session_type?: 'video' | 'in_person' | 'written_review';
   add_ons?: Array<'wardrobe_review' | 'makeup_audit'>;
   estimated_price?: string;
+  user_questions?: string;
   message?: string;
 };
 
@@ -79,6 +91,15 @@ export type ShareRecord = {
   image_url: string | null;
   share_url: string;
   created_at: string;
+};
+
+export type BeautyPreferenceResponse = {
+  preference: BeautyPreferenceRecord;
+  products: ProductRecommendation[];
+};
+
+export type SavedLooksResponse = {
+  items: SavedLookRecord[];
 };
 
 export type AuthUser = {
@@ -242,6 +263,64 @@ export const createShare = async (input: {
   });
 
   return readJson<ShareRecord>(response);
+};
+
+export const saveBeautyPreferences = async (
+  input: BeautyPreferenceInput
+): Promise<BeautyPreferenceResponse> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/preferences`, {
+    method: 'POST',
+    headers: getJsonHeaders(),
+    body: JSON.stringify(input)
+  });
+
+  return readJson<BeautyPreferenceResponse>(response);
+};
+
+export const addProductToSavedLook = async (input: {
+  analysis_id: string;
+  product: ProductRecommendation;
+}): Promise<SavedLookRecord> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/saved-looks/products`, {
+    method: 'POST',
+    headers: getJsonHeaders(),
+    body: JSON.stringify(input)
+  });
+
+  return readJson<SavedLookRecord>(response);
+};
+
+export const getSavedLooks = async (analysisId?: string | null): Promise<SavedLooksResponse> => {
+  const query = analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : '';
+  const response = await fetch(`${API_BASE_URL}/api/v1/saved-looks${query}`, {
+    headers: getAuthHeaders()
+  });
+
+  return readJson<SavedLooksResponse>(response);
+};
+
+export const updateSavedLook = async (
+  lookId: string,
+  input: Partial<Pick<SavedLookRecord, 'name' | 'occasion' | 'notes' | 'products'>>
+): Promise<SavedLookRecord> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/saved-looks/${encodeURIComponent(lookId)}`, {
+    method: 'PATCH',
+    headers: getJsonHeaders(),
+    body: JSON.stringify(input)
+  });
+
+  return readJson<SavedLookRecord>(response);
+};
+
+export const deleteSavedLook = async (lookId: string): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/api/v1/saved-looks/${encodeURIComponent(lookId)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+
+  if (!response.ok) {
+    await readJson(response);
+  }
 };
 
 export const getShare = async (shareId: string): Promise<ShareRecord> => {
