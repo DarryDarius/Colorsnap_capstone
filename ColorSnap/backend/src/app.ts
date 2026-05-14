@@ -14,6 +14,8 @@ import sharesRouter from './routes/shares';
 const app = express();
 const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
 
+app.set('trust proxy', 1);
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', clientOrigin);
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');

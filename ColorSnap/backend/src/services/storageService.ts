@@ -86,6 +86,34 @@ export const ensureDatabaseReady = async () => {
         )
       `);
       await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "AnalysisJob" (
+          "analysisId" TEXT NOT NULL PRIMARY KEY,
+          "userId" TEXT,
+          "source" TEXT,
+          "imageHash" TEXT NOT NULL,
+          "mimeType" TEXT NOT NULL,
+          "originalName" TEXT NOT NULL,
+          "imageBytes" BLOB NOT NULL,
+          "status" TEXT NOT NULL,
+          "attempts" INTEGER NOT NULL DEFAULT 0,
+          "maxAttempts" INTEGER NOT NULL DEFAULT 3,
+          "availableAt" TEXT NOT NULL,
+          "lockedAt" TEXT,
+          "lastErrorJson" TEXT,
+          "createdAt" TEXT NOT NULL,
+          "updatedAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "AnalysisCache" (
+          "imageHash" TEXT NOT NULL PRIMARY KEY,
+          "resultJson" TEXT NOT NULL,
+          "createdAt" TEXT NOT NULL,
+          "updatedAt" TEXT NOT NULL,
+          "expiresAt" TEXT NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "AnalysisFeedback" (
           "id" TEXT NOT NULL PRIMARY KEY,
           "analysisId" TEXT NOT NULL,
@@ -220,6 +248,9 @@ export const ensureDatabaseReady = async () => {
       await addColumnIfMissing('OrderItem', 'matchReason', 'TEXT');
       await addColumnIfMissing('OrderItem', 'matchScore', 'INTEGER');
       await addColumnIfMissing('OrderItem', 'sourceLookId', 'TEXT');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "AnalysisJob_status_availableAt_idx" ON "AnalysisJob" ("status", "availableAt")');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "AnalysisJob_imageHash_idx" ON "AnalysisJob" ("imageHash")');
+      await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "AnalysisCache_expiresAt_idx" ON "AnalysisCache" ("expiresAt")');
     })();
   }
 
@@ -257,6 +288,44 @@ type SavedLookRow = {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type AnalysisJobRecord = {
+  analysis_id: string;
+  user_id?: string;
+  source: 'upload' | 'camera' | 'web';
+  image_hash: string;
+  mime_type: string;
+  original_name: string;
+  image_buffer: Buffer;
+  attempts: number;
+  max_attempts: number;
+};
+
+type AnalysisJobRow = {
+  analysisId: string;
+  userId: string | null;
+  source: string | null;
+  imageHash: string;
+  mimeType: string;
+  originalName: string;
+  imageBytes: Buffer | Uint8Array;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  availableAt: string;
+  lockedAt: string | null;
+  lastErrorJson: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AnalysisCacheRow = {
+  imageHash: string;
+  resultJson: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
 };
 
 const toAnalysisResult = (row: NonNullable<AnalysisRow>): AnalysisResult => ({
@@ -410,6 +479,18 @@ const toOrderRecord = (row: NonNullable<OrderRow> & { items?: Array<{
   }))
 });
 
+const toAnalysisJobRecord = (row: AnalysisJobRow): AnalysisJobRecord => ({
+  analysis_id: row.analysisId,
+  user_id: row.userId || undefined,
+  source: row.source === 'upload' || row.source === 'camera' || row.source === 'web' ? row.source : 'web',
+  image_hash: row.imageHash,
+  mime_type: row.mimeType,
+  original_name: row.originalName,
+  image_buffer: Buffer.from(row.imageBytes),
+  attempts: row.attempts,
+  max_attempts: row.maxAttempts
+});
+
 export const createProcessingAnalysis = async (
   userId?: string | null,
   source: 'upload' | 'camera' | 'web' = 'web'
@@ -510,6 +591,203 @@ export const failAnalysis = async (analysisId: string, code: string, message: st
   });
 
   return toAnalysisResult(failed);
+};
+
+export const enqueueAnalysisJob = async (input: {
+  analysisId: string;
+  userId?: string | null;
+  source: 'upload' | 'camera' | 'web';
+  imageHash: string;
+  mimeType: string;
+  originalName: string;
+  imageBuffer: Buffer;
+  maxAttempts?: number;
+}) => {
+  await ensureDatabaseReady();
+  const timestamp = nowIso();
+
+  await prisma.$executeRawUnsafe(
+    `INSERT OR REPLACE INTO "AnalysisJob"
+     ("analysisId", "userId", "source", "imageHash", "mimeType", "originalName", "imageBytes",
+      "status", "attempts", "maxAttempts", "availableAt", "lockedAt", "lastErrorJson", "createdAt", "updatedAt")
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', 0, ?, ?, NULL, NULL, ?, ?)`,
+    input.analysisId,
+    input.userId || null,
+    input.source,
+    input.imageHash,
+    input.mimeType,
+    input.originalName,
+    input.imageBuffer,
+    input.maxAttempts || 3,
+    timestamp,
+    timestamp,
+    timestamp
+  );
+};
+
+export const claimNextAnalysisJob = async () => {
+  await ensureDatabaseReady();
+  const timestamp = nowIso();
+  const rows = await prisma.$queryRawUnsafe<AnalysisJobRow[]>(
+    `SELECT * FROM "AnalysisJob"
+     WHERE "status" = 'queued' AND "availableAt" <= ?
+     ORDER BY "availableAt" ASC, "createdAt" ASC
+     LIMIT 1`,
+    timestamp
+  );
+  const row = rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  const updatedRows = await prisma.$executeRawUnsafe(
+    `UPDATE "AnalysisJob"
+     SET "status" = 'running', "attempts" = "attempts" + 1, "lockedAt" = ?, "updatedAt" = ?
+     WHERE "analysisId" = ? AND "status" = 'queued'`,
+    timestamp,
+    timestamp,
+    row.analysisId
+  );
+
+  if (updatedRows === 0) {
+    return null;
+  }
+
+  const claimedRows = await prisma.$queryRawUnsafe<AnalysisJobRow[]>(
+    'SELECT * FROM "AnalysisJob" WHERE "analysisId" = ? LIMIT 1',
+    row.analysisId
+  );
+  const claimed = claimedRows[0];
+
+  return claimed && claimed.status === 'running' ? toAnalysisJobRecord(claimed) : null;
+};
+
+export const completeAnalysisJob = async (analysisId: string) => {
+  await ensureDatabaseReady();
+  await prisma.$executeRawUnsafe(
+    `UPDATE "AnalysisJob"
+     SET "status" = 'completed', "lockedAt" = NULL, "updatedAt" = ?
+     WHERE "analysisId" = ?`,
+    nowIso(),
+    analysisId
+  );
+};
+
+export const requeueAnalysisJob = async (analysisId: string, code: string, message: string, delayMs: number) => {
+  await ensureDatabaseReady();
+  const nextAvailableAt = new Date(Date.now() + delayMs).toISOString();
+  await prisma.$executeRawUnsafe(
+    `UPDATE "AnalysisJob"
+     SET "status" = 'queued', "availableAt" = ?, "lockedAt" = NULL, "lastErrorJson" = ?, "updatedAt" = ?
+     WHERE "analysisId" = ?`,
+    nextAvailableAt,
+    stringify({ code, message }),
+    nowIso(),
+    analysisId
+  );
+};
+
+export const failAnalysisJobPermanently = async (analysisId: string, code: string, message: string) => {
+  await ensureDatabaseReady();
+  await prisma.$executeRawUnsafe(
+    `UPDATE "AnalysisJob"
+     SET "status" = 'failed', "lockedAt" = NULL, "lastErrorJson" = ?, "updatedAt" = ?
+     WHERE "analysisId" = ?`,
+    stringify({ code, message }),
+    nowIso(),
+    analysisId
+  );
+};
+
+export const releaseStaleAnalysisJobs = async (staleAfterMs: number) => {
+  await ensureDatabaseReady();
+  const staleBefore = new Date(Date.now() - staleAfterMs).toISOString();
+  const timestamp = nowIso();
+
+  await prisma.$executeRawUnsafe(
+    `UPDATE "AnalysisJob"
+     SET "status" = 'queued', "availableAt" = ?, "lockedAt" = NULL, "updatedAt" = ?
+     WHERE "status" = 'running' AND "lockedAt" IS NOT NULL AND "lockedAt" < ?`,
+    timestamp,
+    timestamp,
+    staleBefore
+  );
+};
+
+export const getAnalysisQueueStats = async () => {
+  await ensureDatabaseReady();
+  const rows = await prisma.$queryRawUnsafe<Array<{ status: string; count: bigint | number }>>(
+    'SELECT "status", COUNT(*) as "count" FROM "AnalysisJob" GROUP BY "status"'
+  );
+
+  return rows.reduce<Record<string, number>>((acc, row) => {
+    acc[row.status] = Number(row.count);
+    return acc;
+  }, {
+    queued: 0,
+    running: 0,
+    completed: 0,
+    failed: 0
+  });
+};
+
+export const getCachedAnalysisResult = async (
+  imageHash: string
+): Promise<Omit<AnalysisResult, 'analysis_id' | 'status' | 'created_at' | 'completed_at' | 'error'> | null> => {
+  await ensureDatabaseReady();
+  const timestamp = nowIso();
+  const rows = await prisma.$queryRawUnsafe<AnalysisCacheRow[]>(
+    'SELECT * FROM "AnalysisCache" WHERE "imageHash" = ? AND "expiresAt" > ? LIMIT 1',
+    imageHash,
+    timestamp
+  );
+  const row = rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  return parseJson<Omit<AnalysisResult, 'analysis_id' | 'status' | 'created_at' | 'completed_at' | 'error'>>(row.resultJson) || null;
+};
+
+export const upsertCachedAnalysisResult = async (
+  imageHash: string,
+  result: Omit<AnalysisResult, 'analysis_id' | 'status' | 'created_at' | 'completed_at' | 'error'>,
+  ttlMs: number
+) => {
+  await ensureDatabaseReady();
+  const timestamp = nowIso();
+  const expiresAt = new Date(Date.now() + ttlMs).toISOString();
+
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "AnalysisCache" ("imageHash", "resultJson", "createdAt", "updatedAt", "expiresAt")
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT("imageHash") DO UPDATE SET
+       "resultJson" = excluded."resultJson",
+       "updatedAt" = excluded."updatedAt",
+       "expiresAt" = excluded."expiresAt"`,
+    imageHash,
+    stringify(result),
+    timestamp,
+    timestamp,
+    expiresAt
+  );
+};
+
+export const pruneExpiredAnalysisCache = async () => {
+  await ensureDatabaseReady();
+  await prisma.$executeRawUnsafe('DELETE FROM "AnalysisCache" WHERE "expiresAt" <= ?', nowIso());
+};
+
+export const getStoredAnalysisCacheCount = async () => {
+  await ensureDatabaseReady();
+  await pruneExpiredAnalysisCache();
+  const rows = await prisma.$queryRawUnsafe<Array<{ count: bigint | number }>>(
+    'SELECT COUNT(*) as "count" FROM "AnalysisCache"'
+  );
+
+  return Number(rows[0]?.count || 0);
 };
 
 export const getStoredAnalysisCount = async () => {

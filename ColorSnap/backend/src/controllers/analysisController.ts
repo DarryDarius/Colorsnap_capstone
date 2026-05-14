@@ -1,50 +1,34 @@
 import type { Request, Response } from 'express';
-import { analyzeImage } from '../services/aiAnalysisService';
-import { getProductRecommendations } from '../services/productRecommendationService';
 import {
-  completeAnalysis,
   createAnalysisFeedbackRecord,
   createProcessingAnalysis,
-  failAnalysis,
   getAnalysis,
   getAnalysisFeedbackRecords
 } from '../services/storageService';
+import { completeAnalysisIfCached, enqueueAnalysis } from '../services/analysisQueueService';
+import { createImageHash } from '../services/analysisCacheService';
 import { ApiError, toErrorResponse } from '../utils/errors';
 import { parseUploadedImage } from '../utils/validation';
-
-const processAnalysis = async (analysisId: string, image: Awaited<ReturnType<typeof parseUploadedImage>>) => {
-  try {
-    const modelResult = await analyzeImage(image);
-    const products = getProductRecommendations({
-      primarySeason: modelResult.season_result!.primary,
-      secondarySeason: modelResult.season_result!.secondary,
-      attributes: modelResult.attributes!,
-      limit: 16
-    });
-
-    await completeAnalysis(analysisId, {
-      ...modelResult,
-      products
-    });
-  } catch (error) {
-    await failAnalysis(
-      analysisId,
-      error instanceof ApiError ? error.code : 'MODEL_ERROR',
-      error instanceof Error ? error.message : 'Analysis could not be completed.'
-    );
-  }
-};
 
 export const createAnalysis = async (req: Request, res: Response) => {
   try {
     const image = await parseUploadedImage(req);
     const analysis = await createProcessingAnalysis(req.user?.id, image.source);
+    const imageHash = createImageHash(image);
+    const completedFromCache = await completeAnalysisIfCached(analysis.analysis_id, imageHash);
 
-    void processAnalysis(analysis.analysis_id, image);
+    if (!completedFromCache) {
+      await enqueueAnalysis({
+        analysisId: analysis.analysis_id,
+        userId: req.user?.id,
+        image,
+        imageHash
+      });
+    }
 
     res.status(201).json({
       analysis_id: analysis.analysis_id,
-      status: analysis.status,
+      status: completedFromCache ? 'completed' : analysis.status,
       created_at: analysis.created_at,
       poll_url: `/api/v1/analyses/${analysis.analysis_id}`
     });

@@ -6,6 +6,7 @@ import { colorAnalysisPrompt } from '../prompts/colorAnalysisPrompt';
 import { imageQualityPrompt } from '../prompts/imageQualityPrompt';
 import { calibrateAnalysis, createQualityFromAssessment } from './colorSeasonCalibrationService';
 import { ApiError } from '../utils/errors';
+import { runOpenAiCall } from './resilienceService';
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -577,7 +578,7 @@ const normalizeModelAnalysis = (analysis: ModelAnalysisOutput): ModelAnalysisOut
 const postToOpenAi = async (payload: Record<string, unknown>): Promise<OpenAiResponseBody> => {
   const requestBody = JSON.stringify(payload);
 
-  return new Promise((resolve, reject) => {
+  return runOpenAiCall(() => new Promise((resolve, reject) => {
     let settled = false;
 
     const finalize = (error: Error | null, responseBody?: OpenAiResponseBody) => {
@@ -611,7 +612,18 @@ const postToOpenAi = async (payload: Record<string, unknown>): Promise<OpenAiRes
 
         response.on('end', () => {
           const responseText = Buffer.concat(chunks).toString('utf8');
-          const parsedBody = responseText ? JSON.parse(responseText) as OpenAiResponseBody & OpenAiErrorBody : {};
+          let parsedBody: OpenAiResponseBody & OpenAiErrorBody = {};
+
+          try {
+            parsedBody = responseText ? JSON.parse(responseText) as OpenAiResponseBody & OpenAiErrorBody : {};
+          } catch (error) {
+            finalize(new ApiError(
+              502,
+              'OPENAI_RESPONSE_INVALID',
+              error instanceof Error ? error.message : 'OpenAI returned an invalid JSON response.'
+            ));
+            return;
+          }
 
           if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
             const message =
@@ -640,7 +652,7 @@ const postToOpenAi = async (payload: Record<string, unknown>): Promise<OpenAiRes
 
     request.write(requestBody);
     request.end();
-  });
+  }));
 };
 
 const validateQualityAssessment = (assessment: ImageQualityAssessment) => {
@@ -834,6 +846,48 @@ export const analyzeImageWithMockAi = async (image: UploadedImage): Promise<Mode
   return validateModelAnalysis(calibrateAnalysis(output, qualityAssessment));
 };
 
+const analyzeImageWithDegradedFallback = async (image: UploadedImage, reason: string): Promise<ModelAnalysisOutput> => {
+  const fallback = await analyzeImageWithMockAi(image);
+
+  return {
+    ...fallback,
+    image_quality: {
+      ...fallback.image_quality!,
+      retry_advice: 'Live AI analysis is temporarily degraded. You can retry later for a fresh model-backed result.'
+    },
+    season_result: {
+      ...fallback.season_result!,
+      confidence: Math.min(fallback.season_result?.confidence || 0.55, 0.58)
+    },
+    evidence: {
+      ...fallback.evidence!,
+      uncertainty_factors: [
+        reason,
+        ...(fallback.evidence?.uncertainty_factors || [])
+      ].slice(0, 6),
+      confidence_reason: 'Confidence is intentionally capped because the live AI service was unavailable and ColorSnap used a degraded fallback.'
+    },
+    summary: {
+      ...fallback.summary!,
+      one_liner: 'Live AI analysis is temporarily degraded, so this fallback result is a cautious placeholder.'
+    }
+  };
+};
+
+const shouldUseDegradedFallback = (error: unknown) => {
+  if (process.env.AI_DEGRADED_FALLBACK === 'false') {
+    return false;
+  }
+
+  return error instanceof ApiError && [
+    'AI_CIRCUIT_OPEN',
+    'MODEL_TIMEOUT',
+    'OPENAI_API_ERROR',
+    'OPENAI_RESPONSE_INVALID',
+    'OPENAI_REQUEST_FAILED'
+  ].includes(error.code);
+};
+
 const requestOpenAiAnalysis = async (
   image: UploadedImage,
   detail: 'high' | 'low' | 'auto',
@@ -927,5 +981,17 @@ export const analyzeImage = async (image: UploadedImage): Promise<ModelAnalysisO
     return analyzeImageWithMockAi(image);
   }
 
-  return analyzeImageWithOpenAi(image);
+  try {
+    return await analyzeImageWithOpenAi(image);
+  } catch (error) {
+    if (!shouldUseDegradedFallback(error)) {
+      throw error;
+    }
+
+    console.warn('[ColorSnap] Using degraded AI fallback after upstream analysis failure.', error);
+    return analyzeImageWithDegradedFallback(
+      image,
+      error instanceof ApiError ? error.message : 'The live AI service was temporarily unavailable.'
+    );
+  }
 };

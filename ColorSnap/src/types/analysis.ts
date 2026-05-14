@@ -248,7 +248,7 @@ export type AnalysisResult = {
 
 export type CreateAnalysisResponse = {
   analysis_id: string;
-  status: 'processing';
+  status: AnalysisStatus;
   created_at: string;
   poll_url: string;
 };

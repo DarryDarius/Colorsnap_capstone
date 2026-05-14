@@ -18,6 +18,9 @@ export type BackendHealth = {
   ai_mode: 'mock' | 'openai';
   ai_status?: 'ready' | 'missing_config';
   openai_configured?: boolean;
+  resilience?: unknown;
+  analysis_queue?: unknown;
+  persisted_cache_entries?: number;
   timestamp: string;
 };
 

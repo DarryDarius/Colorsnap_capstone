@@ -55,6 +55,37 @@ model Analysis {
   @@index([status])
 }
 
+model AnalysisJob {
+  analysisId    String  @id
+  userId        String?
+  source        String?
+  imageHash     String
+  mimeType      String
+  originalName  String
+  imageBytes    Bytes
+  status        String
+  attempts      Int     @default(0)
+  maxAttempts   Int     @default(3)
+  availableAt   String
+  lockedAt      String?
+  lastErrorJson String?
+  createdAt     String
+  updatedAt     String
+
+  @@index([status, availableAt])
+  @@index([imageHash])
+}
+
+model AnalysisCache {
+  imageHash  String @id
+  resultJson String
+  createdAt  String
+  updatedAt  String
+  expiresAt  String
+
+  @@index([expiresAt])
+}
+
 model AnalysisFeedback {
   id             String @id
   analysisId     String

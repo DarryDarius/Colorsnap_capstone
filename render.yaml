@@ -34,3 +34,33 @@ services:
         value: low
       - key: OPENAI_TIMEOUT_MS
         value: 30000
+      - key: AI_ANALYSIS_RATE_LIMIT_MAX
+        value: 3
+      - key: AI_ANALYSIS_RATE_LIMIT_WINDOW_MS
+        value: 60000
+      - key: AI_ANALYSIS_WORKER_CONCURRENCY
+        value: 2
+      - key: AI_ANALYSIS_JOB_MAX_ATTEMPTS
+        value: 3
+      - key: AI_ANALYSIS_JOB_RETRY_BASE_MS
+        value: 2000
+      - key: AI_ANALYSIS_JOB_STALE_MS
+        value: 300000
+      - key: AI_ANALYSIS_CACHE_TTL_MS
+        value: 604800000
+      - key: AI_ANALYSIS_CACHE_MAX_ENTRIES
+        value: 100
+      - key: AI_OPENAI_MAX_CONCURRENCY
+        value: 3
+      - key: AI_CIRCUIT_FAILURE_RATIO
+        value: 0.5
+      - key: AI_CIRCUIT_MIN_REQUESTS
+        value: 6
+      - key: AI_CIRCUIT_WINDOW_MS
+        value: 120000
+      - key: AI_CIRCUIT_OPEN_MS
+        value: 60000
+      - key: AI_CIRCUIT_HALF_OPEN_SUCCESSES
+        value: 2
+      - key: AI_DEGRADED_FALLBACK
+        value: true

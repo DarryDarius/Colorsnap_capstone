@@ -1,8 +1,10 @@
 import './config/loadEnv';
 import app from './app';
 import { getAiMode } from './services/aiAnalysisService';
+import { startAnalysisQueueWorker } from './services/analysisQueueService';
 import {
   getStoredAnalysisCount,
+  getStoredAnalysisCacheCount,
   getStoredBookingCount,
   getStoredOrderCount,
   getStoredSavedResultCount,
@@ -15,9 +17,11 @@ const host = process.env.HOST || '127.0.0.1';
 app.listen(port, host, async () => {
   console.log(`ColorSnap backend listening on http://${host}:${port}`);
   console.log(`[ColorSnap] AI mode: ${getAiMode()}`);
+  startAnalysisQueueWorker();
 
   try {
     console.log(`[ColorSnap] Stored analyses: ${await getStoredAnalysisCount()}`);
+    console.log(`[ColorSnap] Cached analyses: ${await getStoredAnalysisCacheCount()}`);
     console.log(`[ColorSnap] Stored bookings: ${await getStoredBookingCount()}`);
     console.log(`[ColorSnap] Stored orders: ${await getStoredOrderCount()}`);
     console.log(`[ColorSnap] Stored saved results: ${await getStoredSavedResultCount()}`);
