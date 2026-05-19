@@ -13,11 +13,13 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: MOCK_AI
-        value: true
+        value: false
       - key: CLIENT_ORIGIN
         value: "*"
       - key: JWT_SECRET
         generateValue: true
+      - key: DATABASE_URL
+        value: file:./prisma/colorsnap.db
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: OPENAI_API_KEY
@@ -33,25 +35,27 @@ services:
       - key: OPENAI_IMAGE_DETAIL_FALLBACK
         value: low
       - key: OPENAI_TIMEOUT_MS
-        value: 30000
+        value: 45000
       - key: AI_ANALYSIS_RATE_LIMIT_MAX
         value: 3
       - key: AI_ANALYSIS_RATE_LIMIT_WINDOW_MS
         value: 60000
       - key: AI_ANALYSIS_WORKER_CONCURRENCY
-        value: 2
+        value: 1
       - key: AI_ANALYSIS_JOB_MAX_ATTEMPTS
         value: 3
       - key: AI_ANALYSIS_JOB_RETRY_BASE_MS
         value: 2000
       - key: AI_ANALYSIS_JOB_STALE_MS
         value: 300000
+      - key: AI_ANALYSIS_CACHE_VERSION
+        value: korean-pc-v2.0-live
       - key: AI_ANALYSIS_CACHE_TTL_MS
-        value: 604800000
+        value: 10000
       - key: AI_ANALYSIS_CACHE_MAX_ENTRIES
         value: 100
       - key: AI_OPENAI_MAX_CONCURRENCY
-        value: 3
+        value: 2
       - key: AI_CIRCUIT_FAILURE_RATIO
         value: 0.5
       - key: AI_CIRCUIT_MIN_REQUESTS
@@ -63,4 +67,4 @@ services:
       - key: AI_CIRCUIT_HALF_OPEN_SUCCESSES
         value: 2
       - key: AI_DEGRADED_FALLBACK
-        value: true
+        value: false

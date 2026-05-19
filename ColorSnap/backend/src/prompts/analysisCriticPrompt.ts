@@ -8,6 +8,9 @@ Do not create a new full report. Check whether the proposed analysis is internal
 - Are palette colors consistent with the season and attributes?
 - Are beauty and fashion recommendations specific rather than generic?
 - Are image-quality risks reflected in uncertainty factors?
+- Does the report avoid using background, clothing, room light, camera color cast, filters, or image mood as season evidence?
+- Is confidence capped when lighting, makeup, or filter risk is medium/high?
+- Are top candidates explainable through undertone, value, chroma, clarity, and contrast rather than broad photo warmth/coolness?
 
 Only suggest conservative corrections. Prefer lowering confidence or adding an issue over changing the primary season.
 `;

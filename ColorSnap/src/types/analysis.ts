@@ -25,6 +25,20 @@ export type CurrencyCode = 'USD';
 export type MakeupStyle = 'natural' | 'polished' | 'soft_glam' | 'bold' | 'glam';
 export type BudgetRange = 'flexible' | 'drugstore' | 'mid_range' | 'luxury';
 export type ShoppingGoal = 'full_look' | 'lipstick' | 'blush' | 'eyes' | 'base' | 'fashion';
+export type ProfileValue = 'light' | 'medium' | 'deep';
+export type ProfileClarity = 'soft' | 'clear';
+export type RiskLevel = 'low' | 'medium' | 'high';
+
+export type ColorProfileV2 = {
+  undertone: Undertone;
+  value: ProfileValue;
+  chroma: Saturation;
+  clarity: ProfileClarity;
+  contrast: Contrast;
+  lighting_risk: RiskLevel;
+  makeup_risk: RiskLevel;
+  filter_risk: RiskLevel;
+};
 
 export type ImageQuality = {
   passed: boolean;
@@ -215,10 +229,22 @@ export type AnalysisResult = {
   completed_at?: string;
   image_quality?: ImageQuality;
   quality_assessment?: ImageQualityAssessment;
+  color_profile_v2?: ColorProfileV2;
   season_result?: SeasonResult;
   attributes?: ColorAttributes;
   evidence?: ColorAnalysisEvidence;
   critic?: AnalysisCriticResult;
+  confidence_cap_reason?: string | null;
+  rejected_evidence?: string[];
+  knowledge_base_version?: string;
+  season_scoring?: {
+    version: string;
+    top_score_gap: number;
+    raw_scores: Array<{
+      season: Season;
+      score: number;
+    }>;
+  };
   summary?: {
     headline: string;
     one_liner: string;
@@ -239,6 +265,7 @@ export type AnalysisResult = {
   products?: ProductRecommendation[];
   beta_features?: {
     virtual_try_on_available: boolean;
+    degraded_fallback?: boolean;
   };
   error?: {
     code: string;

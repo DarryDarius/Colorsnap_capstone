@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { deleteSavedLook, getSavedLooks, updateSavedLook } from '../services/api';
 import type { ProductRecommendation, SavedLookRecord } from '../types/analysis';
@@ -151,6 +152,21 @@ const Button = styled.button<{ $variant?: 'primary' | 'danger' }>`
   font-size: var(--font-sm);
   font-weight: 800;
   padding: 0.65rem 0.9rem;
+`;
+
+const ActionLink = styled(Link)<{ $variant?: 'primary' }>`
+  background: ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary)' : 'var(--surface)')};
+  border: 1px solid ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary)' : 'var(--border-soft)')};
+  border-radius: var(--radius-md);
+  color: ${(props) => (props.$variant === 'primary' ? 'var(--text-inverse)' : 'var(--text-primary)')};
+  font-size: var(--font-sm);
+  font-weight: 800;
+  padding: 0.65rem 0.9rem;
+
+  &:hover {
+    background: ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary-hover)' : 'var(--brand-primary-pale)')};
+    border-color: ${(props) => (props.$variant === 'primary' ? 'var(--brand-primary-hover)' : 'var(--brand-primary-soft)')};
+  }
 `;
 
 const StatusBox = styled.div`
@@ -317,6 +333,15 @@ const SavedLooks: React.FC = () => {
                   >
                     Add Full Look to Cart
                   </Button>
+                  <ActionLink
+                    $variant="primary"
+                    to={`/booking?expert=ex1&analysis_id=${encodeURIComponent(look.analysis_id)}&saved_look_id=${encodeURIComponent(look.look_id)}`}
+                  >
+                    Book with This Look
+                  </ActionLink>
+                  <ActionLink to={`/result?id=${encodeURIComponent(look.analysis_id)}`}>
+                    View Analysis
+                  </ActionLink>
                   <Button type="button" $variant="danger" onClick={() => handleDeleteLook(look.look_id)}>
                     Delete Look
                   </Button>

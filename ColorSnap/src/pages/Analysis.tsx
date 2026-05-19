@@ -401,6 +401,7 @@ const StepDot = styled.span`
 
 type AiMode = 'mock' | 'openai' | 'offline' | 'unknown';
 type AiStatus = 'ready' | 'missing_config' | 'unknown';
+type AnalysisServiceState = 'checking' | 'live' | 'mock' | 'degraded' | 'misconfigured' | 'offline';
 type PhotoSource = 'upload' | 'camera';
 
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -411,10 +412,28 @@ type OptionalMediaDevices = {
 
 const getMediaDevices = () => (navigator as unknown as { mediaDevices?: OptionalMediaDevices }).mediaDevices;
 
+const getAnalysisServiceState = (
+  aiMode: AiMode,
+  aiStatus: AiStatus,
+  health: Awaited<ReturnType<typeof getBackendHealth>> | null
+): AnalysisServiceState => {
+  if (aiMode === 'offline') return 'offline';
+  if (aiMode === 'unknown') return 'checking';
+  if (aiMode === 'mock') return 'mock';
+  if (aiMode === 'openai' && aiStatus === 'missing_config') return 'misconfigured';
+  if (
+    health?.resilience?.openai_circuit?.state === 'open' ||
+    (health?.resilience?.openai_concurrency?.queued || 0) > 0
+  ) {
+    return 'degraded';
+  }
+  return 'live';
+};
+
 const getFriendlyAnalysisStartError = (error: unknown) => {
   if (error instanceof ApiClientError) {
     if (error.code === 'OPENAI_CONFIG_MISSING') {
-      return 'Live OpenAI mode is selected, but OPENAI_API_KEY is missing in backend/.env. Add the key or switch MOCK_AI=true for demo mode.';
+      return 'Live OpenAI mode is selected, but OPENAI_API_KEY is missing in backend/.env. Add the key before running a live analysis.';
     }
 
     if (error.code === 'FILE_TOO_LARGE') {
@@ -453,6 +472,7 @@ const Analysis: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [aiMode, setAiMode] = useState<AiMode>('unknown');
   const [aiStatus, setAiStatus] = useState<AiStatus>('unknown');
+  const [backendHealth, setBackendHealth] = useState<Awaited<ReturnType<typeof getBackendHealth>> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -462,10 +482,12 @@ const Analysis: React.FC = () => {
       const health = await getBackendHealth();
       setAiMode(health.ai_mode);
       setAiStatus(health.ai_status || 'ready');
+      setBackendHealth(health);
       setError(null);
     } catch {
       setAiMode('offline');
       setAiStatus('unknown');
+      setBackendHealth(null);
     }
   }, []);
 
@@ -484,15 +506,19 @@ const Analysis: React.FC = () => {
     };
   }, [refreshBackendHealth]);
 
-  const modeLabel = aiMode === 'openai' && aiStatus === 'missing_config'
+  const serviceState = getAnalysisServiceState(aiMode, aiStatus, backendHealth);
+
+  const modeLabel = serviceState === 'misconfigured'
     ? 'OpenAI key missing'
-    : aiMode === 'openai'
-    ? 'Live OpenAI analysis'
-    : aiMode === 'mock'
-      ? 'Demo analysis mode'
-      : aiMode === 'offline'
-        ? 'Service offline'
-        : 'Checking service';
+    : serviceState === 'degraded'
+    ? 'Live AI degraded'
+    : serviceState === 'live'
+      ? 'Live OpenAI analysis'
+      : serviceState === 'mock'
+        ? 'Demo analysis mode'
+        : serviceState === 'offline'
+          ? 'Service offline'
+          : 'Checking service';
 
   const pipelineTitle = aiMode === 'openai'
     ? 'Live AI flow'
@@ -502,9 +528,9 @@ const Analysis: React.FC = () => {
         ? 'Offline flow'
         : 'Analysis flow';
 
-  const isServiceOffline = aiMode === 'offline';
-  const isOpenAiMissingConfig = aiMode === 'openai' && aiStatus === 'missing_config';
-  const isAnalysisUnavailable = isServiceOffline || isOpenAiMissingConfig;
+  const isServiceOffline = serviceState === 'offline';
+  const isOpenAiMissingConfig = serviceState === 'misconfigured';
+  const isAnalysisUnavailable = serviceState === 'offline' || serviceState === 'misconfigured' || serviceState === 'checking';
 
   const setFile = (file: File, source: PhotoSource = 'upload') => {
     if (!allowedTypes.has(file.type)) {
@@ -554,7 +580,7 @@ const Analysis: React.FC = () => {
     }
 
     if (isOpenAiMissingConfig) {
-      setError('Live OpenAI mode is selected, but OPENAI_API_KEY is missing in backend/.env. Add the key or switch MOCK_AI=true for demo mode.');
+      setError('Live OpenAI mode is selected, but OPENAI_API_KEY is missing in backend/.env. Add the key before running a live analysis.');
       return;
     }
 
@@ -628,14 +654,30 @@ const Analysis: React.FC = () => {
           {isOpenAiMissingConfig && (
             <ServiceNotice $tone="warning">
               <NoticeTitle>OpenAI live mode needs configuration.</NoticeTitle>
-              MOCK_AI=false is active, but OPENAI_API_KEY is not set in backend/.env. Add the key or switch to MOCK_AI=true for a stable demo.
+              MOCK_AI=false is active, but OPENAI_API_KEY is not set in backend/.env. Add the key before running a live analysis.
               <NoticeAction type="button" onClick={refreshBackendHealth}>Retry Config Check</NoticeAction>
             </ServiceNotice>
           )}
 
           {aiMode === 'mock' && (
             <ServiceNotice>
-              Demo mode is active. Results are deterministic so the local capstone flow stays stable.
+              <NoticeTitle>Demo mode is active.</NoticeTitle>
+              Results are deterministic so the capstone flow stays stable for local and online presentations.
+            </ServiceNotice>
+          )}
+
+          {serviceState === 'live' && (
+            <ServiceNotice>
+              <NoticeTitle>Live AI analysis is ready.</NoticeTitle>
+              ColorSnap will use the configured OpenAI model for this upload.
+            </ServiceNotice>
+          )}
+
+          {serviceState === 'degraded' && (
+            <ServiceNotice $tone="warning">
+              <NoticeTitle>Live AI is under pressure.</NoticeTitle>
+              You can continue, but live-first mode will fail transparently with retry options if the upstream model is slow or unstable.
+              <NoticeAction type="button" onClick={refreshBackendHealth}>Refresh Service Status</NoticeAction>
             </ServiceNotice>
           )}
 

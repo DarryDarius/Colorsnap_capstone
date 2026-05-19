@@ -19,6 +19,8 @@ const undertones = new Set(['warm', 'cool', 'neutral']);
 const brightnessValues = new Set(['low', 'medium-low', 'medium', 'medium-high', 'high']);
 const saturations = new Set(['muted', 'medium', 'bright']);
 const contrasts = new Set(['low', 'medium', 'high']);
+const profileValues = new Set(['light', 'medium', 'deep']);
+const profileClarities = new Set(['soft', 'clear']);
 const faceVisibilityValues = new Set(['clear', 'partial', 'poor']);
 const lightingValues = new Set(['natural_even', 'warm_indoor', 'cool_indoor', 'backlit', 'mixed', 'poor']);
 const riskValues = new Set(['low', 'medium', 'high']);
@@ -60,6 +62,21 @@ export const validateModelAnalysis = (analysis: ModelAnalysisOutput): ModelAnaly
     !contrasts.has(analysis.attributes.contrast)
   ) {
     throw new Error('Model output has invalid color attributes.');
+  }
+
+  if (analysis.color_profile_v2) {
+    if (
+      !undertones.has(analysis.color_profile_v2.undertone) ||
+      !profileValues.has(analysis.color_profile_v2.value) ||
+      !saturations.has(analysis.color_profile_v2.chroma) ||
+      !profileClarities.has(analysis.color_profile_v2.clarity) ||
+      !contrasts.has(analysis.color_profile_v2.contrast) ||
+      !riskValues.has(analysis.color_profile_v2.lighting_risk) ||
+      !riskValues.has(analysis.color_profile_v2.makeup_risk) ||
+      !riskValues.has(analysis.color_profile_v2.filter_risk)
+    ) {
+      throw new Error('Model output has invalid ColorProfileV2 fields.');
+    }
   }
 
   if (analysis.quality_assessment) {

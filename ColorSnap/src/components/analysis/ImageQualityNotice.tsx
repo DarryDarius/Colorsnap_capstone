@@ -24,6 +24,13 @@ const DetailList = styled.ul`
   padding: 0;
 `;
 
+const GuidanceList = styled.ul`
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0 0;
+  padding-left: 1.15rem;
+`;
+
 type Props = {
   quality?: ImageQuality;
   assessment?: ImageQualityAssessment;
@@ -32,6 +39,8 @@ type Props = {
 const ImageQualityNotice: React.FC<Props> = ({ quality, assessment }) => {
   if (!quality) return null;
 
+  const shouldShowRetakeGuidance = !quality.passed || Boolean(assessment?.retry_required_reasons.length);
+
   return (
     <Notice $passed={quality.passed}>
       <NoticeTitle>
@@ -39,6 +48,15 @@ const ImageQualityNotice: React.FC<Props> = ({ quality, assessment }) => {
       </NoticeTitle>
       {quality.issues.length > 0 && <p>{quality.issues.join(' ')}</p>}
       {quality.retry_advice && <p>{quality.retry_advice}</p>}
+      {assessment?.user_guidance && <p>{assessment.user_guidance}</p>}
+      {shouldShowRetakeGuidance && (
+        <GuidanceList>
+          <li>Retake in soft natural light, facing a window if possible.</li>
+          <li>Keep your face centered and unobstructed.</li>
+          <li>Avoid beauty filters, heavy edits, or strong colored lighting.</li>
+          <li>Use a simple background so skin, hair, and eye contrast are easier to read.</li>
+        </GuidanceList>
+      )}
       {assessment && (
         <DetailList>
           <li>Lighting: {formatLabel(assessment.lighting)}</li>

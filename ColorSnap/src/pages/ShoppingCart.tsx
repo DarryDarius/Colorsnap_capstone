@@ -469,6 +469,13 @@ const ShoppingCart: React.FC = () => {
 
   const itemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
   const quote = calculateCheckoutQuote(cartItems, appliedPromoCode);
+  const bookingAnalysisId = cartItems.find((item) => item.analysisId)?.analysisId || lastAnalysisId;
+  const bookingLookId = cartItems.find((item) => item.sourceLookId)?.sourceLookId;
+  const bookingUrl = `/booking?expert=ex1${
+    bookingAnalysisId ? `&analysis_id=${encodeURIComponent(bookingAnalysisId)}` : ''
+  }${
+    bookingLookId ? `&saved_look_id=${encodeURIComponent(bookingLookId)}` : ''
+  }`;
 
   const applyPromo = () => {
     const normalizedCode = promoCode.trim().toUpperCase();
@@ -543,6 +550,11 @@ const ShoppingCart: React.FC = () => {
                       <MatchReason>{item.matchReason || item.description}</MatchReason>
                       <ItemActions>
                         {detailsUrl && <TextLink to={detailsUrl}>View Details</TextLink>}
+                        {item.analysisId && (
+                          <TextLink to={`/result?id=${encodeURIComponent(item.analysisId)}`}>
+                            View Analysis
+                          </TextLink>
+                        )}
                         {isRealExternalUrl(item.purchaseUrl) && (
                           <ExternalLink href={item.purchaseUrl} target="_blank" rel="noreferrer">
                             Buy from {item.retailerName || 'Retailer'}
@@ -625,6 +637,9 @@ const ShoppingCart: React.FC = () => {
                 </PrimaryButton>
                 <SecondaryButton type="button" onClick={() => navigate('/analysis')}>
                   Continue Shopping
+                </SecondaryButton>
+                <SecondaryButton type="button" onClick={() => navigate(bookingUrl)}>
+                  Book Consultation with These Picks
                 </SecondaryButton>
                 <SecondaryButton type="button" onClick={handleClearCart}>
                   Clear Cart

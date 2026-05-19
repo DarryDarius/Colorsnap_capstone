@@ -15,11 +15,14 @@ const parsePositiveInteger = (value: string | undefined, fallback: number) => {
 
 const maxEntries = parsePositiveInteger(process.env.AI_ANALYSIS_CACHE_MAX_ENTRIES, 100);
 const ttlMs = parsePositiveInteger(process.env.AI_ANALYSIS_CACHE_TTL_MS, 7 * 24 * 60 * 60 * 1000);
+const cacheVersion = process.env.AI_ANALYSIS_CACHE_VERSION?.trim() || 'korean-pc-v2.0-live';
 const memoryCache = new Map<string, CacheEntry>();
 
 export const createImageHash = (image: UploadedImage) => {
   return crypto
     .createHash('sha256')
+    .update(cacheVersion)
+    .update('\0')
     .update(image.mimeType)
     .update('\0')
     .update(image.buffer)
@@ -76,6 +79,7 @@ export const getAnalysisCacheStatus = () => {
   return {
     entries: memoryCache.size,
     max_entries: maxEntries,
-    ttl_ms: ttlMs
+    ttl_ms: ttlMs,
+    version: cacheVersion
   };
 };

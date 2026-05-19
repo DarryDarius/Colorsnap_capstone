@@ -161,6 +161,12 @@ const ErrorBox = styled(StatusBox)`
   color: var(--error);
 `;
 
+const WarningBox = styled(StatusBox)`
+  background: #FFF8EC;
+  border-color: #E8D5B8;
+  color: var(--warning);
+`;
+
 const StatusTitle = styled.strong`
   color: inherit;
   display: block;
@@ -218,6 +224,54 @@ const EvidenceList = styled.ul`
 const CandidateList = styled.div`
   display: grid;
   gap: var(--space-3);
+`;
+
+const ProfileGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: var(--space-5);
+
+  @media (max-width: 860px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ProfileItem = styled.div<{ $risk?: 'low' | 'medium' | 'high' }>`
+  background: ${(props) => (
+    props.$risk === 'high'
+      ? '#FFF4F2'
+      : props.$risk === 'medium'
+        ? '#FFF8EC'
+        : 'var(--surface-warm)'
+  )};
+  border: 1px solid ${(props) => (
+    props.$risk === 'high'
+      ? '#F0C9C3'
+      : props.$risk === 'medium'
+        ? '#E8D5B8'
+        : 'var(--border-soft)'
+  )};
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  text-align: left;
+`;
+
+const ProfileLabel = styled.span`
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--font-sm);
+  font-weight: 800;
+  margin-bottom: var(--space-1);
+`;
+
+const ProfileValue = styled.strong`
+  color: var(--text-primary);
+  font-size: var(--font-md);
 `;
 
 const CandidateItem = styled.div`
@@ -371,6 +425,8 @@ const processingMessages = [
   'Building your seasonal palette summary and product matches.'
 ];
 
+const ANALYSIS_POLL_TIMEOUT_MS = 120_000;
+
 const finishOptions: ProductFinish[] = ['matte', 'satin', 'dewy', 'natural', 'shimmer'];
 
 const splitPreferenceText = (value: string) => (
@@ -397,7 +453,7 @@ const getFriendlyLoadError = (error: unknown): ResultErrorState => {
 
     return {
       title: 'Unable to load this result',
-      message: `${error.message} (${error.code || `HTTP ${error.status}`})`
+      message: `${error.message} (${error.code || `HTTP ${error.status}`})${error.retryable ? ' This usually clears after a retry.' : ''}`
     };
   }
 
@@ -415,10 +471,10 @@ const getFriendlyLoadError = (error: unknown): ResultErrorState => {
 };
 
 const getFriendlyFailedAnalysis = (code?: string, message?: string): ResultErrorState => {
-  if (code === 'OPENAI_CONFIG_MISSING') {
+    if (code === 'OPENAI_CONFIG_MISSING') {
     return {
       title: 'OpenAI is not configured',
-      message: 'Live OpenAI mode is active, but OPENAI_API_KEY is missing in backend/.env. Add the key or switch MOCK_AI=true for demo mode, then upload again.'
+      message: 'Live OpenAI mode is active, but OPENAI_API_KEY is missing in backend/.env. Add the key, restart the backend, then upload again.'
     };
   }
 
@@ -468,6 +524,7 @@ const Result: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [processingStep, setProcessingStep] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
+  const [pollStartedAt, setPollStartedAt] = useState<number | null>(null);
   const [feedbackRating, setFeedbackRating] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   const [feedbackTags, setFeedbackTags] = useState<AnalysisFeedback['issue_tags']>([]);
   const [feedbackStatus, setFeedbackStatus] = useState<string | null>(null);
@@ -502,6 +559,8 @@ const Result: React.FC = () => {
     let isMounted = true;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let pollDelay = 1000;
+    const startedAt = Date.now();
+    setPollStartedAt(startedAt);
 
     const poll = async () => {
       try {
@@ -512,6 +571,14 @@ const Result: React.FC = () => {
         setError(null);
 
         if (nextAnalysis.status === 'processing') {
+          if (Date.now() - startedAt >= ANALYSIS_POLL_TIMEOUT_MS) {
+            setError({
+              title: 'Analysis is taking longer than expected',
+              message: 'The backend accepted your photo, but the report has not finished yet. Retry the status check, start a new analysis, or switch to demo mode for a stable presentation.'
+            });
+            return;
+          }
+
           timeoutId = setTimeout(poll, pollDelay);
           pollDelay = Math.min(pollDelay + 500, 3000);
         }
@@ -579,6 +646,7 @@ const Result: React.FC = () => {
   const handleRetry = () => {
     setError(null);
     setAnalysis(null);
+    setPollStartedAt(null);
     setRetryCount((current) => current + 1);
   };
 
@@ -650,6 +718,8 @@ const Result: React.FC = () => {
   const title = analysis?.status === 'completed' && analysis.season_result
     ? `Analysis Result: ${analysis.season_result.primary}`
     : 'Analysis Result';
+  const elapsedSeconds = pollStartedAt ? Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)) : 0;
+  const usedDegradedFallback = Boolean(analysis?.beta_features?.degraded_fallback);
 
   return (
     <PageShell>
@@ -676,6 +746,9 @@ const Result: React.FC = () => {
               <ActionButton type="button" $variant="primary" onClick={() => navigate('/analysis')}>
                 Start New Analysis
               </ActionButton>
+              <ActionButton type="button" onClick={() => navigate('/demo-check')}>
+                Check Live Readiness
+              </ActionButton>
             </InlineActions>
           </ErrorBox>
         )}
@@ -683,6 +756,11 @@ const Result: React.FC = () => {
         {!error && (!analysis || analysis.status === 'processing') && (
           <StatusBox>
             We are preparing your personalized color report. This usually takes a few seconds.
+            {elapsedSeconds > 20 && (
+              <StatusCopy>
+                Still working after {elapsedSeconds} seconds. Larger photos or live AI mode can take longer.
+              </StatusCopy>
+            )}
             <ProcessingList>
               {processingMessages.map((message, index) => (
                 <li key={message}>
@@ -715,6 +793,15 @@ const Result: React.FC = () => {
 
         {analysis?.status === 'completed' && (
           <>
+            {usedDegradedFallback && (
+              <WarningBox>
+                <StatusTitle>Fallback result used</StatusTitle>
+                <StatusCopy>
+                  Live AI was temporarily degraded, so this report uses a cautious fallback with capped confidence.
+                  You can keep exploring the demo flow or retry later for a fresh model-backed result.
+                </StatusCopy>
+              </WarningBox>
+            )}
             {analysis.season_result && (
               <ConfidenceBadge $level={getConfidenceLevel(analysis.season_result.confidence)}>
                 {getConfidenceLabel(analysis.season_result.confidence)} result
@@ -739,6 +826,52 @@ const Result: React.FC = () => {
           <ReportSection>
             <SectionTitle>Your Color Profile</SectionTitle>
             <ImageQualityNotice quality={analysis.image_quality} assessment={analysis.quality_assessment} />
+            {analysis.color_profile_v2 && (
+              <ProfileGrid>
+                <ProfileItem>
+                  <ProfileLabel>Undertone</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.undertone)}</ProfileValue>
+                </ProfileItem>
+                <ProfileItem>
+                  <ProfileLabel>Value</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.value)}</ProfileValue>
+                </ProfileItem>
+                <ProfileItem>
+                  <ProfileLabel>Chroma</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.chroma)}</ProfileValue>
+                </ProfileItem>
+                <ProfileItem>
+                  <ProfileLabel>Clarity</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.clarity)}</ProfileValue>
+                </ProfileItem>
+                <ProfileItem>
+                  <ProfileLabel>Contrast</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.contrast)}</ProfileValue>
+                </ProfileItem>
+                <ProfileItem $risk={analysis.color_profile_v2.lighting_risk}>
+                  <ProfileLabel>Lighting Risk</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.lighting_risk)}</ProfileValue>
+                </ProfileItem>
+                <ProfileItem $risk={analysis.color_profile_v2.makeup_risk}>
+                  <ProfileLabel>Makeup Risk</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.makeup_risk)}</ProfileValue>
+                </ProfileItem>
+                <ProfileItem $risk={analysis.color_profile_v2.filter_risk}>
+                  <ProfileLabel>Filter Risk</ProfileLabel>
+                  <ProfileValue>{formatLabel(analysis.color_profile_v2.filter_risk)}</ProfileValue>
+                </ProfileItem>
+              </ProfileGrid>
+            )}
+            {analysis.knowledge_base_version && (
+              <StatusBox>
+                <StatusTitle>Korean personal color rulebook</StatusTitle>
+                <StatusCopy>
+                  Version {analysis.knowledge_base_version}. ColorSnap scores season candidates from undertone,
+                  value, chroma, clarity, and contrast. Lighting, makeup, and filters are treated as reliability
+                  risks, not direct season evidence.
+                </StatusCopy>
+              </StatusBox>
+            )}
             <ReportBlock>
               <AttributeChips attributes={analysis.attributes} />
             </ReportBlock>
@@ -766,6 +899,19 @@ const Result: React.FC = () => {
                     <EvidenceList>
                       {analysis.evidence.uncertainty_factors.map((factor) => (
                         <li key={factor}>{factor}</li>
+                      ))}
+                    </EvidenceList>
+                  </EvidenceCard>
+                </ReportBlock>
+              )}
+              {(analysis.confidence_cap_reason || (analysis.rejected_evidence && analysis.rejected_evidence.length > 0)) && (
+                <ReportBlock>
+                  <EvidenceCard>
+                    <EvidenceTitle>Why the result stays cautious</EvidenceTitle>
+                    <EvidenceList>
+                      {analysis.confidence_cap_reason && <li>{analysis.confidence_cap_reason}</li>}
+                      {(analysis.rejected_evidence || []).map((evidence) => (
+                        <li key={evidence}>{evidence}</li>
                       ))}
                     </EvidenceList>
                   </EvidenceCard>

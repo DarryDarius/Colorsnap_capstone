@@ -31,10 +31,15 @@ model Analysis {
   source                     String?
   imageQualityJson           String?
   qualityAssessmentJson      String?
+  colorProfileV2Json         String?
   seasonResultJson           String?
   attributesJson             String?
   evidenceJson               String?
   criticJson                 String?
+  confidenceCapReason        String?
+  rejectedEvidenceJson       String?
+  knowledgeBaseVersion       String?
+  seasonScoringJson          String?
   summaryJson                String?
   recommendedPaletteJson     String?
   beautyRecommendationsJson  String?

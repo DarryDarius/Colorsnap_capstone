@@ -410,6 +410,15 @@ const addOnLabels: Record<BookingAddOn, string> = {
   makeup_audit: 'Makeup audit'
 };
 
+const buildConsultantBrief = (look: SavedLookRecord, analysis: AnalysisResult | null) => {
+  const products = look.products
+    .slice(0, 5)
+    .map((product) => `${product.brand} ${product.name}`)
+    .join(', ');
+  const season = analysis?.season_result?.primary ? ` for ${analysis.season_result.primary}` : '';
+  return `Please review my saved look "${look.name}"${season}. Products: ${products || 'no products selected yet'}.`;
+};
+
 const getEstimatedPrice = (duration: string, addOns: BookingAddOn[]) => {
   const basePrice = duration === '60' ? 95 : duration === '45' ? 78 : 55;
   const addOnTotal = addOns.reduce((total, addOn) => total + (addOn === 'wardrobe_review' ? 35 : 25), 0);
@@ -441,7 +450,9 @@ const Booking: React.FC = () => {
   const [userQuestions, setUserQuestions] = useState('');
 
   const selectedExpert = expertId ? experts[expertId as keyof typeof experts] : null;
-  const analysisId = localStorage.getItem('lastAnalysisId');
+  const requestedAnalysisId = searchParams.get('analysis_id') || localStorage.getItem('lastAnalysisId');
+  const requestedLookId = searchParams.get('saved_look_id') || '';
+  const analysisId = requestedAnalysisId;
   const selectedLook = useMemo(
     () => savedLooks.find((look) => look.look_id === selectedLookId) || null,
     [savedLooks, selectedLookId]
@@ -465,8 +476,12 @@ const Booking: React.FC = () => {
 
         setAnalysis(nextAnalysis.status === 'completed' ? nextAnalysis : null);
         setSavedLooks(looksResponse.items);
-        if (looksResponse.items[0]) {
-          setSelectedLookId(looksResponse.items[0].look_id);
+        const requestedLook = requestedLookId
+          ? looksResponse.items.find((look) => look.look_id === requestedLookId)
+          : null;
+
+        if (requestedLook || looksResponse.items[0]) {
+          setSelectedLookId((requestedLook || looksResponse.items[0]).look_id);
         }
       } catch {
         if (isMounted) {
@@ -481,7 +496,13 @@ const Booking: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [analysisId]);
+  }, [analysisId, requestedLookId]);
+
+  useEffect(() => {
+    if (selectedLook && !userQuestions.trim()) {
+      setUserQuestions(buildConsultantBrief(selectedLook, analysis));
+    }
+  }, [analysis, selectedLook, userQuestions]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;

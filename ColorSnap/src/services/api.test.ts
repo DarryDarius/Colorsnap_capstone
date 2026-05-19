@@ -1,4 +1,5 @@
 import {
+  ApiClientError,
   createAnalysis,
   createBooking,
   createDemoOrder,
@@ -6,6 +7,7 @@ import {
   createShare,
   addProductToSavedLook,
   deleteSavedLook,
+  getBackendHealth,
   getSavedLooks,
   getShare,
   loginWithGoogle,
@@ -86,6 +88,26 @@ test('createAnalysis posts camera source with the image file', async () => {
   }));
   expect(body.get('image')).toBe(image);
   expect(body.get('source')).toBe('camera');
+});
+
+test('API errors expose code, status, and retryability', async () => {
+  mockFetch.mockResolvedValueOnce({
+    ok: false,
+    status: 503,
+    json: async () => ({
+      error: {
+        code: 'AI_CIRCUIT_OPEN',
+        message: 'AI analysis is temporarily degraded.'
+      }
+    })
+  });
+
+  await expect(getBackendHealth()).rejects.toMatchObject({
+    name: 'ApiClientError',
+    status: 503,
+    code: 'AI_CIRCUIT_OPEN',
+    retryable: true
+  } satisfies Partial<ApiClientError>);
 });
 
 test('createDemoOrder posts cart items to the backend', async () => {

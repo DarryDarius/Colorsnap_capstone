@@ -69,10 +69,15 @@ export const ensureDatabaseReady = async () => {
           "source" TEXT,
           "imageQualityJson" TEXT,
           "qualityAssessmentJson" TEXT,
+          "colorProfileV2Json" TEXT,
           "seasonResultJson" TEXT,
           "attributesJson" TEXT,
           "evidenceJson" TEXT,
           "criticJson" TEXT,
+          "confidenceCapReason" TEXT,
+          "rejectedEvidenceJson" TEXT,
+          "knowledgeBaseVersion" TEXT,
+          "seasonScoringJson" TEXT,
           "summaryJson" TEXT,
           "recommendedPaletteJson" TEXT,
           "beautyRecommendationsJson" TEXT,
@@ -241,6 +246,11 @@ export const ensureDatabaseReady = async () => {
           "sourceLookId" TEXT
         )
       `);
+      await addColumnIfMissing('Analysis', 'colorProfileV2Json', 'TEXT');
+      await addColumnIfMissing('Analysis', 'confidenceCapReason', 'TEXT');
+      await addColumnIfMissing('Analysis', 'rejectedEvidenceJson', 'TEXT');
+      await addColumnIfMissing('Analysis', 'knowledgeBaseVersion', 'TEXT');
+      await addColumnIfMissing('Analysis', 'seasonScoringJson', 'TEXT');
       await addColumnIfMissing('Booking', 'analysisId', 'TEXT');
       await addColumnIfMissing('Booking', 'savedLookId', 'TEXT');
       await addColumnIfMissing('Booking', 'userQuestions', 'TEXT');
@@ -335,10 +345,15 @@ const toAnalysisResult = (row: NonNullable<AnalysisRow>): AnalysisResult => ({
   completed_at: row.completedAt || undefined,
   image_quality: parseJson<AnalysisResult['image_quality']>(row.imageQualityJson),
   quality_assessment: parseJson<AnalysisResult['quality_assessment']>(row.qualityAssessmentJson),
+  color_profile_v2: parseJson<AnalysisResult['color_profile_v2']>(row.colorProfileV2Json),
   season_result: parseJson<AnalysisResult['season_result']>(row.seasonResultJson),
   attributes: parseJson<AnalysisResult['attributes']>(row.attributesJson),
   evidence: parseJson<AnalysisResult['evidence']>(row.evidenceJson),
   critic: parseJson<AnalysisResult['critic']>(row.criticJson),
+  confidence_cap_reason: row.confidenceCapReason || undefined,
+  rejected_evidence: parseJson<AnalysisResult['rejected_evidence']>(row.rejectedEvidenceJson),
+  knowledge_base_version: row.knowledgeBaseVersion || undefined,
+  season_scoring: parseJson<AnalysisResult['season_scoring']>(row.seasonScoringJson),
   summary: parseJson<AnalysisResult['summary']>(row.summaryJson),
   recommended_palette: parseJson<AnalysisResult['recommended_palette']>(row.recommendedPaletteJson),
   beauty_recommendations: parseJson<AnalysisResult['beauty_recommendations']>(row.beautyRecommendationsJson),
@@ -537,10 +552,15 @@ export const completeAnalysis = async (
       status: 'completed',
       imageQualityJson: result.image_quality ? stringify(result.image_quality) : null,
       qualityAssessmentJson: result.quality_assessment ? stringify(result.quality_assessment) : null,
+      colorProfileV2Json: result.color_profile_v2 ? stringify(result.color_profile_v2) : null,
       seasonResultJson: result.season_result ? stringify(result.season_result) : null,
       attributesJson: result.attributes ? stringify(result.attributes) : null,
       evidenceJson: result.evidence ? stringify(result.evidence) : null,
       criticJson: result.critic ? stringify(result.critic) : null,
+      confidenceCapReason: result.confidence_cap_reason || null,
+      rejectedEvidenceJson: result.rejected_evidence ? stringify(result.rejected_evidence) : null,
+      knowledgeBaseVersion: result.knowledge_base_version || null,
+      seasonScoringJson: result.season_scoring ? stringify(result.season_scoring) : null,
       summaryJson: result.summary ? stringify(result.summary) : null,
       recommendedPaletteJson: result.recommended_palette ? stringify(result.recommended_palette) : null,
       beautyRecommendationsJson: result.beauty_recommendations ? stringify(result.beauty_recommendations) : null,

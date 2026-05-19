@@ -7,6 +7,7 @@ import { imageQualityPrompt } from '../prompts/imageQualityPrompt';
 import { calibrateAnalysis, createQualityFromAssessment } from './colorSeasonCalibrationService';
 import { ApiError } from '../utils/errors';
 import { runOpenAiCall } from './resilienceService';
+import { applyKoreanPersonalColorScoring } from './seasonScoringService';
 
 const wait = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
@@ -266,9 +267,10 @@ const analysisJsonSchema = {
     beta_features: {
       type: 'object',
       additionalProperties: false,
-      required: ['virtual_try_on_available'],
+      required: ['virtual_try_on_available', 'degraded_fallback'],
       properties: {
-        virtual_try_on_available: { type: 'boolean' }
+        virtual_try_on_available: { type: 'boolean' },
+        degraded_fallback: { type: 'boolean' }
       }
     }
   }
@@ -570,7 +572,8 @@ const normalizeModelAnalysis = (analysis: ModelAnalysisOutput): ModelAnalysisOut
       metals: (analysis.fashion_recommendations?.metals || []).map((metal) => cleanString(metal, '')).filter(Boolean).slice(0, 4)
     },
     beta_features: {
-      virtual_try_on_available: true
+      virtual_try_on_available: true,
+      degraded_fallback: Boolean(analysis.beta_features?.degraded_fallback)
     }
   };
 };
@@ -839,11 +842,12 @@ export const analyzeImageWithMockAi = async (image: UploadedImage): Promise<Mode
       metals: ['Gold', 'Antique Gold', 'Bronze']
     },
     beta_features: {
-      virtual_try_on_available: true
+      virtual_try_on_available: true,
+      degraded_fallback: false
     }
   };
 
-  return validateModelAnalysis(calibrateAnalysis(output, qualityAssessment));
+  return validateModelAnalysis(applyKoreanPersonalColorScoring(calibrateAnalysis(output, qualityAssessment)));
 };
 
 const analyzeImageWithDegradedFallback = async (image: UploadedImage, reason: string): Promise<ModelAnalysisOutput> => {
@@ -870,14 +874,16 @@ const analyzeImageWithDegradedFallback = async (image: UploadedImage, reason: st
     summary: {
       ...fallback.summary!,
       one_liner: 'Live AI analysis is temporarily degraded, so this fallback result is a cautious placeholder.'
+    },
+    beta_features: {
+      ...fallback.beta_features!,
+      degraded_fallback: true
     }
   };
 };
 
 const shouldUseDegradedFallback = (error: unknown) => {
-  if (process.env.AI_DEGRADED_FALLBACK === 'false') {
-    return false;
-  }
+  if (process.env.AI_DEGRADED_FALLBACK !== 'true') return false;
 
   return error instanceof ApiError && [
     'AI_CIRCUIT_OPEN',
@@ -926,7 +932,7 @@ const requestOpenAiAnalysis = async (
 
   try {
     const normalizedAnalysis = normalizeModelAnalysis(JSON.parse(rawText) as ModelAnalysisOutput);
-    return validateModelAnalysis(calibrateAnalysis(normalizedAnalysis, qualityAssessment));
+    return validateModelAnalysis(applyKoreanPersonalColorScoring(calibrateAnalysis(normalizedAnalysis, qualityAssessment)));
   } catch (error) {
     if (error instanceof ApiError) {
       throw error;

@@ -18,8 +18,27 @@ export type BackendHealth = {
   ai_mode: 'mock' | 'openai';
   ai_status?: 'ready' | 'missing_config';
   openai_configured?: boolean;
-  resilience?: unknown;
-  analysis_queue?: unknown;
+  resilience?: {
+    openai_concurrency?: {
+      max_concurrent?: number;
+      active?: number;
+      queued?: number;
+    };
+    openai_circuit?: {
+      state?: 'closed' | 'open' | 'half_open';
+      recent_requests?: number;
+      recent_failures?: number;
+      opened_at?: string | null;
+    };
+  };
+  analysis_queue?: {
+    worker?: {
+      max_concurrent?: number;
+      active?: number;
+    };
+    jobs?: Record<string, number>;
+    memory_cache?: unknown;
+  };
   persisted_cache_entries?: number;
   timestamp: string;
 };
@@ -127,24 +146,45 @@ type ApiErrorBody = {
 export class ApiClientError extends Error {
   status: number;
   code?: string;
+  retryable: boolean;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, retryable = false) {
     super(message);
     this.name = 'ApiClientError';
     this.status = status;
     this.code = code;
+    this.retryable = retryable;
   }
 }
+
+const retryableErrorCodes = new Set([
+  'AI_CIRCUIT_OPEN',
+  'MODEL_TIMEOUT',
+  'OPENAI_API_ERROR',
+  'OPENAI_RESPONSE_INVALID',
+  'OPENAI_REQUEST_FAILED'
+]);
+
+const isRetryableResponse = (status: number, code?: string) => (
+  status === 408 ||
+  status === 409 ||
+  status === 425 ||
+  status === 429 ||
+  status >= 500 ||
+  Boolean(code && retryableErrorCodes.has(code))
+);
 
 const readJson = async <T>(response: Response): Promise<T> => {
   const body = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     const errorBody = body as ApiErrorBody;
+    const code = errorBody.error?.code;
     throw new ApiClientError(
       errorBody.error?.message || `Request failed with status ${response.status}.`,
       response.status,
-      errorBody.error?.code
+      code,
+      isRetryableResponse(response.status, code)
     );
   }
 

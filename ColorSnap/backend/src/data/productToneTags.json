@@ -1,0 +1,20 @@
+{
+  "version": "korean-pc-v2.0",
+  "tagAxes": [
+    "seasonTags",
+    "undertoneTags",
+    "valueTags",
+    "chromaTags",
+    "contrastTags",
+    "finishTags",
+    "avoidIf"
+  ],
+  "recommendationWeights": {
+    "season": 0.35,
+    "undertone": 0.2,
+    "chroma": 0.15,
+    "value": 0.1,
+    "contrast": 0.1,
+    "preference": 0.1
+  }
+}

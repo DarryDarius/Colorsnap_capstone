@@ -368,7 +368,7 @@ const Home: React.FC = () => {
               <FeatureList>
                 <FeatureItem>Palette recommendations explain where each shade works best.</FeatureItem>
                 <FeatureItem>Product cards include match badges, reasons, and external retailer links.</FeatureItem>
-                <FeatureItem>Demo mode keeps the capstone presentation stable without live API risk.</FeatureItem>
+                <FeatureItem>Live readiness checks help verify OpenAI, queue, and backend health before a presentation.</FeatureItem>
               </FeatureList>
             </ResultPreview>
           </PreviewLayout>

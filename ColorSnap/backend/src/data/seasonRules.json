@@ -1,0 +1,114 @@
+{
+  "version": "korean-pc-v2.0",
+  "seasons": {
+    "Light Spring": {
+      "undertone": ["warm", "neutral"],
+      "value": ["light"],
+      "chroma": ["medium", "bright"],
+      "clarity": ["clear"],
+      "contrast": ["low", "medium"],
+      "family": "Spring"
+    },
+    "Warm Spring": {
+      "undertone": ["warm"],
+      "value": ["light", "medium"],
+      "chroma": ["bright"],
+      "clarity": ["clear"],
+      "contrast": ["medium"],
+      "family": "Spring"
+    },
+    "Bright Spring": {
+      "undertone": ["warm", "neutral"],
+      "value": ["medium"],
+      "chroma": ["bright"],
+      "clarity": ["clear"],
+      "contrast": ["medium", "high"],
+      "family": "Spring"
+    },
+    "Light Summer": {
+      "undertone": ["cool", "neutral"],
+      "value": ["light"],
+      "chroma": ["muted", "medium"],
+      "clarity": ["soft"],
+      "contrast": ["low"],
+      "family": "Summer"
+    },
+    "Cool Summer": {
+      "undertone": ["cool"],
+      "value": ["light", "medium"],
+      "chroma": ["muted", "medium"],
+      "clarity": ["soft"],
+      "contrast": ["low", "medium"],
+      "family": "Summer"
+    },
+    "Soft Summer": {
+      "undertone": ["cool", "neutral"],
+      "value": ["light", "medium"],
+      "chroma": ["muted"],
+      "clarity": ["soft"],
+      "contrast": ["low", "medium"],
+      "family": "Summer"
+    },
+    "Soft Autumn": {
+      "undertone": ["warm", "neutral"],
+      "value": ["medium"],
+      "chroma": ["muted"],
+      "clarity": ["soft"],
+      "contrast": ["low", "medium"],
+      "family": "Autumn"
+    },
+    "Warm Autumn": {
+      "undertone": ["warm"],
+      "value": ["medium", "deep"],
+      "chroma": ["muted", "medium"],
+      "clarity": ["soft"],
+      "contrast": ["medium"],
+      "family": "Autumn"
+    },
+    "Deep Autumn": {
+      "undertone": ["warm", "neutral"],
+      "value": ["deep"],
+      "chroma": ["muted", "medium"],
+      "clarity": ["soft", "clear"],
+      "contrast": ["medium", "high"],
+      "family": "Autumn"
+    },
+    "Deep Winter": {
+      "undertone": ["cool", "neutral"],
+      "value": ["deep"],
+      "chroma": ["medium", "bright"],
+      "clarity": ["clear"],
+      "contrast": ["high"],
+      "family": "Winter"
+    },
+    "Cool Winter": {
+      "undertone": ["cool"],
+      "value": ["medium", "deep"],
+      "chroma": ["medium", "bright"],
+      "clarity": ["clear"],
+      "contrast": ["medium", "high"],
+      "family": "Winter"
+    },
+    "Bright Winter": {
+      "undertone": ["cool", "neutral"],
+      "value": ["medium", "deep"],
+      "chroma": ["bright"],
+      "clarity": ["clear"],
+      "contrast": ["high"],
+      "family": "Winter"
+    }
+  },
+  "weights": {
+    "undertone": 0.3,
+    "value": 0.2,
+    "chroma": 0.2,
+    "clarity": 0.15,
+    "contrast": 0.15
+  },
+  "confidenceCaps": {
+    "lightingRiskMedium": 0.72,
+    "lightingRiskHigh": 0.62,
+    "makeupRiskHigh": 0.58,
+    "filterRiskHigh": 0.55
+  }
+}

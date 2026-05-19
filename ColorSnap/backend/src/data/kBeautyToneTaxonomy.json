@@ -1,0 +1,31 @@
+{
+  "version": "korean-pc-v2.0",
+  "Spring": {
+    "makeupDirection": "fresh, clear, warm, lively",
+    "lip": ["coral", "peach", "apricot", "clear warm pink"],
+    "blush": ["peach coral", "apricot", "clear warm rose"],
+    "eyeshadow": ["champagne", "warm beige", "light coral brown"],
+    "finish": ["dewy", "satin", "glowy"]
+  },
+  "Summer": {
+    "makeupDirection": "cool, soft, airy, muted",
+    "lip": ["mauve pink", "dusty rose", "cool soft pink", "rose beige"],
+    "blush": ["lavender pink", "rose beige", "soft cool pink"],
+    "eyeshadow": ["taupe", "soft rose brown", "gray beige"],
+    "finish": ["blurred matte", "soft satin", "sheer"]
+  },
+  "Autumn": {
+    "makeupDirection": "warm, muted, earthy, mature",
+    "lip": ["terracotta", "brick rose", "maple", "chili"],
+    "blush": ["ginger", "warm beige", "muted coral"],
+    "eyeshadow": ["olive brown", "camel", "copper brown"],
+    "finish": ["velvet", "matte", "soft matte"]
+  },
+  "Winter": {
+    "makeupDirection": "cool, clear, sharp, high contrast",
+    "lip": ["blue red", "berry", "plum", "fuchsia"],
+    "blush": ["cool rose", "clear pink"],
+    "eyeshadow": ["charcoal", "cool taupe", "icy shimmer"],
+    "finish": ["satin", "clear gloss", "defined matte"]
+  }
+}
