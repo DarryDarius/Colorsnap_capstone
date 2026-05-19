@@ -62,11 +62,14 @@ type Props = {
 
 const AnalysisSummary: React.FC<Props> = ({ analysis }) => {
   if (!analysis.summary || !analysis.season_result) return null;
+  const resultHeadline = analysis.season_result.secondary
+    ? `Likely ${analysis.season_result.primary} with ${analysis.season_result.secondary} as the closest alternative`
+    : `Likely ${analysis.season_result.primary}`;
 
   return (
     <SummaryGrid>
       <SummaryCopy>
-        <Headline>{analysis.summary.headline}</Headline>
+        <Headline>{resultHeadline}</Headline>
         <OneLiner>{analysis.summary.one_liner}</OneLiner>
         <ExplanationList>
           {analysis.summary.explanations.map((explanation) => (

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AlertTriangle, BarChart3, CalendarCheck, Camera, CheckCircle2, Palette, RotateCcw, ShoppingBag, Sparkles } from 'lucide-react';
 import styled from 'styled-components';
-import AnalysisSummary from '../components/analysis/AnalysisSummary';
 import AttributeChips from '../components/analysis/AttributeChips';
 import BeautyRecommendations from '../components/analysis/BeautyRecommendations';
 import FashionRecommendations from '../components/analysis/FashionRecommendations';
@@ -9,6 +9,11 @@ import ImageQualityNotice from '../components/analysis/ImageQualityNotice';
 import PaletteSection from '../components/analysis/PaletteSection';
 import ProductRecommendations from '../components/analysis/ProductRecommendations';
 import ShareResultPanel from '../components/share/ShareResultPanel';
+import Badge from '../components/ui/Badge';
+import ButtonBase from '../components/ui/Button';
+import DisclosurePanel from '../components/ui/DisclosurePanel';
+import ProgressMeter from '../components/ui/ProgressMeter';
+import SectionReveal from '../components/ui/SectionReveal';
 import { ApiClientError, addProductToSavedLook, createAnalysisFeedback, getAnalysis, saveBeautyPreferences } from '../services/api';
 import type {
   AnalysisFeedback,
@@ -21,7 +26,7 @@ import type {
   ShoppingGoal
 } from '../types/analysis';
 import { addProductToCart } from '../utils/cart';
-import { formatLabel, formatPercent } from '../utils/formatters';
+import { formatLabel } from '../utils/formatters';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -87,12 +92,62 @@ const ResultImage = styled.img`
   width: 100%;
 `;
 
+const ReportHeroGrid = styled.div`
+  align-items: center;
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  margin: 0 auto var(--space-5);
+  max-width: 840px;
+  text-align: left;
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+`;
+
+const HeroReportPanel = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+`;
+
+const HeroBadgeRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+
+  @media (max-width: 760px) {
+    justify-content: center;
+  }
+`;
+
+const HeroSeason = styled.h2`
+  color: var(--text-primary);
+  font-size: clamp(1.8rem, 4vw, var(--font-3xl));
+  line-height: 1.08;
+`;
+
+const HeroMeta = styled.p`
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin: 0;
+`;
+
 const ActionButtons = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: center;
   margin-top: var(--space-6);
+`;
+
+const ModernActionButton = styled(ButtonBase)`
+  min-width: 160px;
 `;
 
 const InlineActions = styled(ActionButtons)`
@@ -198,6 +253,34 @@ const EvidenceGrid = styled.div`
   }
 `;
 
+const KeyReasonGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: var(--space-4);
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const KeyReasonCard = styled.div`
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  padding: var(--space-4);
+  text-align: left;
+
+  strong {
+    color: var(--brand-primary);
+    display: block;
+    font-size: var(--font-sm);
+    margin-bottom: var(--space-2);
+  }
+`;
+
 const EvidenceCard = styled.div`
   background: var(--surface-warm);
   border: 1px solid var(--border-soft);
@@ -221,11 +304,6 @@ const EvidenceList = styled.ul`
   padding-left: 1.1rem;
 `;
 
-const CandidateList = styled.div`
-  display: grid;
-  gap: var(--space-3);
-`;
-
 const ProfileGrid = styled.div`
   display: grid;
   gap: var(--space-3);
@@ -239,6 +317,11 @@ const ProfileGrid = styled.div`
   @media (max-width: 520px) {
     grid-template-columns: 1fr;
   }
+`;
+
+const DisclosureStack = styled.div`
+  display: grid;
+  gap: var(--space-3);
 `;
 
 const ProfileItem = styled.div<{ $risk?: 'low' | 'medium' | 'high' }>`
@@ -272,58 +355,6 @@ const ProfileLabel = styled.span`
 const ProfileValue = styled.strong`
   color: var(--text-primary);
   font-size: var(--font-md);
-`;
-
-const CandidateItem = styled.div`
-  background: var(--surface);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-4);
-  text-align: left;
-`;
-
-const CandidateHeader = styled.div`
-  align-items: center;
-  display: flex;
-  gap: var(--space-3);
-  justify-content: space-between;
-`;
-
-const CandidateScore = styled.span`
-  color: var(--accent-olive);
-  font-weight: 800;
-`;
-
-const ConfidenceBadge = styled.span<{ $level: 'confident' | 'likely' | 'tentative' }>`
-  background: ${(props) => (
-    props.$level === 'confident'
-      ? 'var(--surface-sage)'
-      : props.$level === 'likely'
-        ? '#FFF8EC'
-        : '#FFF4F2'
-  )};
-  border: 1px solid ${(props) => (
-    props.$level === 'confident'
-      ? '#DDE8DA'
-      : props.$level === 'likely'
-        ? '#E8D5B8'
-        : '#F0C9C3'
-  )};
-  border-radius: var(--radius-md);
-  color: ${(props) => (
-    props.$level === 'confident'
-      ? 'var(--accent-olive)'
-      : props.$level === 'likely'
-        ? 'var(--warning)'
-        : 'var(--error)'
-  )};
-  display: inline-flex;
-  font-size: var(--font-sm);
-  font-weight: 800;
-  margin-bottom: var(--space-4);
-  padding: var(--space-2) var(--space-3);
 `;
 
 const FeedbackPanel = styled.div`
@@ -720,13 +751,54 @@ const Result: React.FC = () => {
     : 'Analysis Result';
   const elapsedSeconds = pollStartedAt ? Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)) : 0;
   const usedDegradedFallback = Boolean(analysis?.beta_features?.degraded_fallback);
+  const keyReasons = analysis?.status === 'completed'
+    ? (
+      analysis.summary?.explanations?.length
+        ? analysis.summary.explanations
+        : Object.values(analysis.evidence?.observable_traits || {}).flat()
+    ).slice(0, 3)
+    : [];
 
   return (
     <PageShell>
       <ResultContainer>
+      <SectionReveal>
       <ResultSection>
         <ResultTitle>{title}</ResultTitle>
-        {uploadedPhoto && (
+        {analysis?.status === 'completed' && analysis.season_result ? (
+          <ReportHeroGrid>
+            {uploadedPhoto && <ResultImage src={uploadedPhoto} alt="Uploaded" />}
+            <HeroReportPanel>
+              <HeroBadgeRow>
+                <Badge $tone={usedDegradedFallback ? 'warning' : 'sage'}>
+                  {usedDegradedFallback ? <AlertTriangle aria-hidden="true" size={13} /> : <CheckCircle2 aria-hidden="true" size={13} />}
+                  {usedDegradedFallback ? 'Fallback protected' : 'Live report ready'}
+                </Badge>
+                <Badge $tone="brand">
+                  <Palette aria-hidden="true" size={13} />
+                  Korean PC rulebook
+                </Badge>
+                <Badge $tone={analysis.image_quality?.passed ? 'sage' : 'warning'}>
+                  <CheckCircle2 aria-hidden="true" size={13} />
+                  {analysis.image_quality?.passed ? 'Photo quality passed' : 'Photo needs caution'}
+                </Badge>
+                <Badge $tone={getConfidenceLevel(analysis.season_result.confidence) === 'tentative' ? 'warning' : 'info'}>
+                  {getConfidenceLabel(analysis.season_result.confidence)} confidence
+                </Badge>
+              </HeroBadgeRow>
+              <HeroSeason>{analysis.season_result.primary}</HeroSeason>
+              <HeroMeta>
+                {analysis.summary?.one_liner || 'Your report combines visible color traits with photo-quality checks.'}
+              </HeroMeta>
+              <ProgressMeter label="Confidence" value={analysis.season_result.confidence * 100} />
+              {analysis.evidence?.top_season_candidates?.[1] && (
+                <HeroMeta>
+                  Closest alternative: {analysis.evidence.top_season_candidates[1].season}.
+                </HeroMeta>
+              )}
+            </HeroReportPanel>
+          </ReportHeroGrid>
+        ) : uploadedPhoto && (
           <>
             <ResultDescription>This is the photo you uploaded:</ResultDescription>
             <ResultImage src={uploadedPhoto} alt="Uploaded" />
@@ -739,16 +811,16 @@ const Result: React.FC = () => {
             <StatusCopy>{error.message}</StatusCopy>
             <InlineActions>
               {analysisId && (
-                <ActionButton type="button" onClick={handleRetry}>
+                <ModernActionButton type="button" variant="secondary" icon={RotateCcw} onClick={handleRetry}>
                   Try Again
-                </ActionButton>
+                </ModernActionButton>
               )}
-              <ActionButton type="button" $variant="primary" onClick={() => navigate('/analysis')}>
+              <ModernActionButton type="button" icon={Camera} onClick={() => navigate('/analysis')}>
                 Start New Analysis
-              </ActionButton>
-              <ActionButton type="button" onClick={() => navigate('/demo-check')}>
+              </ModernActionButton>
+              <ModernActionButton type="button" variant="secondary" icon={BarChart3} onClick={() => navigate('/demo-check')}>
                 Check Live Readiness
-              </ActionButton>
+              </ModernActionButton>
             </InlineActions>
           </ErrorBox>
         )}
@@ -781,12 +853,12 @@ const Result: React.FC = () => {
               {getFriendlyFailedAnalysis(analysis.error?.code, analysis.error?.message).message}
             </StatusCopy>
             <InlineActions>
-              <ActionButton type="button" onClick={handleRetry}>
+              <ModernActionButton type="button" variant="secondary" icon={RotateCcw} onClick={handleRetry}>
                 Try Again
-              </ActionButton>
-              <ActionButton type="button" $variant="primary" onClick={() => navigate('/analysis')}>
+              </ModernActionButton>
+              <ModernActionButton type="button" icon={Camera} onClick={() => navigate('/analysis')}>
                 Upload Another Photo
-              </ActionButton>
+              </ModernActionButton>
             </InlineActions>
           </ErrorBox>
         )}
@@ -802,30 +874,87 @@ const Result: React.FC = () => {
                 </StatusCopy>
               </WarningBox>
             )}
-            {analysis.season_result && (
-              <ConfidenceBadge $level={getConfidenceLevel(analysis.season_result.confidence)}>
-                {getConfidenceLabel(analysis.season_result.confidence)} result
-              </ConfidenceBadge>
-            )}
-            <AnalysisSummary analysis={analysis} />
           </>
         )}
 
         <ActionButtons>
-          <ActionButton $variant="primary" onClick={() => navigate('/analysis')}>
+          <ModernActionButton icon={Camera} onClick={() => navigate('/analysis')}>
             Upload Another Photo
-          </ActionButton>
-          <ActionButton onClick={() => navigate('/consultation')}>
+          </ModernActionButton>
+          <ModernActionButton variant="secondary" icon={CalendarCheck} onClick={() => navigate('/consultation')}>
             Book Expert Consultation
-          </ActionButton>
+          </ModernActionButton>
         </ActionButtons>
       </ResultSection>
+      </SectionReveal>
 
       {analysis?.status === 'completed' && (
         <>
+          {(analysis.evidence || keyReasons.length > 0) && (
+            <ReportSection>
+              <SectionTitle>Why This Result</SectionTitle>
+              {keyReasons.length > 0 && (
+                <KeyReasonGrid>
+                  {keyReasons.map((reason, index) => (
+                    <KeyReasonCard key={reason}>
+                      <strong>Reason {index + 1}</strong>
+                      {reason}
+                    </KeyReasonCard>
+                  ))}
+                </KeyReasonGrid>
+              )}
+              {analysis.evidence && (
+                <DisclosurePanel
+                  title="View Detailed Evidence"
+                  description="Open the full reasoning, uncertainty factors, and confidence notes."
+                >
+                  <DisclosureStack>
+                    <EvidenceGrid>
+                      {Object.entries(analysis.evidence.observable_traits).map(([label, items]) => (
+                        <EvidenceCard key={label}>
+                          <EvidenceTitle>{formatLabel(label.replace('_evidence', ''))}</EvidenceTitle>
+                          <EvidenceList>
+                            {items.length > 0
+                              ? items.map((item) => <li key={item}>{item}</li>)
+                              : <li>Not enough visible evidence to make this trait highly certain.</li>}
+                          </EvidenceList>
+                        </EvidenceCard>
+                      ))}
+                    </EvidenceGrid>
+                    {analysis.evidence.uncertainty_factors.length > 0 && (
+                      <EvidenceCard>
+                        <EvidenceTitle>Uncertainty Factors</EvidenceTitle>
+                        <EvidenceList>
+                          {analysis.evidence.uncertainty_factors.map((factor) => (
+                            <li key={factor}>{factor}</li>
+                          ))}
+                        </EvidenceList>
+                      </EvidenceCard>
+                    )}
+                    {(analysis.confidence_cap_reason || (analysis.rejected_evidence && analysis.rejected_evidence.length > 0)) && (
+                      <EvidenceCard>
+                        <EvidenceTitle>Why the result stays cautious</EvidenceTitle>
+                        <EvidenceList>
+                          {analysis.confidence_cap_reason && <li>{analysis.confidence_cap_reason}</li>}
+                          {(analysis.rejected_evidence || []).map((evidence) => (
+                            <li key={evidence}>{evidence}</li>
+                          ))}
+                        </EvidenceList>
+                      </EvidenceCard>
+                    )}
+                  </DisclosureStack>
+                </DisclosurePanel>
+              )}
+            </ReportSection>
+          )}
+
+          <ReportSection>
+            <SectionTitle>Recommended Palette</SectionTitle>
+            <PaletteSection colors={analysis.recommended_palette} />
+          </ReportSection>
+
           <ReportSection>
             <SectionTitle>Your Color Profile</SectionTitle>
-            <ImageQualityNotice quality={analysis.image_quality} assessment={analysis.quality_assessment} />
             {analysis.color_profile_v2 && (
               <ProfileGrid>
                 <ProfileItem>
@@ -844,108 +973,49 @@ const Result: React.FC = () => {
                   <ProfileLabel>Clarity</ProfileLabel>
                   <ProfileValue>{formatLabel(analysis.color_profile_v2.clarity)}</ProfileValue>
                 </ProfileItem>
-                <ProfileItem>
-                  <ProfileLabel>Contrast</ProfileLabel>
-                  <ProfileValue>{formatLabel(analysis.color_profile_v2.contrast)}</ProfileValue>
-                </ProfileItem>
-                <ProfileItem $risk={analysis.color_profile_v2.lighting_risk}>
-                  <ProfileLabel>Lighting Risk</ProfileLabel>
-                  <ProfileValue>{formatLabel(analysis.color_profile_v2.lighting_risk)}</ProfileValue>
-                </ProfileItem>
-                <ProfileItem $risk={analysis.color_profile_v2.makeup_risk}>
-                  <ProfileLabel>Makeup Risk</ProfileLabel>
-                  <ProfileValue>{formatLabel(analysis.color_profile_v2.makeup_risk)}</ProfileValue>
-                </ProfileItem>
-                <ProfileItem $risk={analysis.color_profile_v2.filter_risk}>
-                  <ProfileLabel>Filter Risk</ProfileLabel>
-                  <ProfileValue>{formatLabel(analysis.color_profile_v2.filter_risk)}</ProfileValue>
-                </ProfileItem>
               </ProfileGrid>
             )}
-            {analysis.knowledge_base_version && (
-              <StatusBox>
-                <StatusTitle>Korean personal color rulebook</StatusTitle>
-                <StatusCopy>
-                  Version {analysis.knowledge_base_version}. ColorSnap scores season candidates from undertone,
-                  value, chroma, clarity, and contrast. Lighting, makeup, and filters are treated as reliability
-                  risks, not direct season evidence.
-                </StatusCopy>
-              </StatusBox>
-            )}
             <ReportBlock>
-              <AttributeChips attributes={analysis.attributes} />
+              <DisclosurePanel
+                title="Technical Details"
+                description="Photo quality, reliability risks, and the rulebook fields used for this report."
+              >
+                <DisclosureStack>
+                  <ImageQualityNotice quality={analysis.image_quality} assessment={analysis.quality_assessment} />
+                  {analysis.color_profile_v2 && (
+                    <ProfileGrid>
+                      <ProfileItem>
+                        <ProfileLabel>Contrast</ProfileLabel>
+                        <ProfileValue>{formatLabel(analysis.color_profile_v2.contrast)}</ProfileValue>
+                      </ProfileItem>
+                      <ProfileItem $risk={analysis.color_profile_v2.lighting_risk}>
+                        <ProfileLabel>Lighting Risk</ProfileLabel>
+                        <ProfileValue>{formatLabel(analysis.color_profile_v2.lighting_risk)}</ProfileValue>
+                      </ProfileItem>
+                      <ProfileItem $risk={analysis.color_profile_v2.makeup_risk}>
+                        <ProfileLabel>Makeup Risk</ProfileLabel>
+                        <ProfileValue>{formatLabel(analysis.color_profile_v2.makeup_risk)}</ProfileValue>
+                      </ProfileItem>
+                      <ProfileItem $risk={analysis.color_profile_v2.filter_risk}>
+                        <ProfileLabel>Filter Risk</ProfileLabel>
+                        <ProfileValue>{formatLabel(analysis.color_profile_v2.filter_risk)}</ProfileValue>
+                      </ProfileItem>
+                    </ProfileGrid>
+                  )}
+                  {analysis.knowledge_base_version && (
+                    <StatusBox>
+                      <StatusTitle>Korean personal color rulebook</StatusTitle>
+                      <StatusCopy>
+                        Version {analysis.knowledge_base_version}. ColorSnap scores season candidates from undertone,
+                        value, chroma, clarity, and contrast. Lighting, makeup, and filters are treated as reliability
+                        risks, not direct season evidence.
+                      </StatusCopy>
+                    </StatusBox>
+                  )}
+                  <AttributeChips attributes={analysis.attributes} />
+                </DisclosureStack>
+              </DisclosurePanel>
             </ReportBlock>
-          </ReportSection>
-
-          {analysis.evidence && (
-            <ReportSection>
-              <SectionTitle>Why This Result</SectionTitle>
-              <EvidenceGrid>
-                {Object.entries(analysis.evidence.observable_traits).map(([label, items]) => (
-                  <EvidenceCard key={label}>
-                    <EvidenceTitle>{formatLabel(label.replace('_evidence', ''))}</EvidenceTitle>
-                    <EvidenceList>
-                      {items.length > 0
-                        ? items.map((item) => <li key={item}>{item}</li>)
-                        : <li>Not enough visible evidence to make this trait highly certain.</li>}
-                    </EvidenceList>
-                  </EvidenceCard>
-                ))}
-              </EvidenceGrid>
-              {analysis.evidence.uncertainty_factors.length > 0 && (
-                <ReportBlock>
-                  <EvidenceCard>
-                    <EvidenceTitle>Uncertainty Factors</EvidenceTitle>
-                    <EvidenceList>
-                      {analysis.evidence.uncertainty_factors.map((factor) => (
-                        <li key={factor}>{factor}</li>
-                      ))}
-                    </EvidenceList>
-                  </EvidenceCard>
-                </ReportBlock>
-              )}
-              {(analysis.confidence_cap_reason || (analysis.rejected_evidence && analysis.rejected_evidence.length > 0)) && (
-                <ReportBlock>
-                  <EvidenceCard>
-                    <EvidenceTitle>Why the result stays cautious</EvidenceTitle>
-                    <EvidenceList>
-                      {analysis.confidence_cap_reason && <li>{analysis.confidence_cap_reason}</li>}
-                      {(analysis.rejected_evidence || []).map((evidence) => (
-                        <li key={evidence}>{evidence}</li>
-                      ))}
-                    </EvidenceList>
-                  </EvidenceCard>
-                </ReportBlock>
-              )}
-            </ReportSection>
-          )}
-
-          {analysis.evidence?.top_season_candidates && (
-            <ReportSection>
-              <SectionTitle>Season Candidates</SectionTitle>
-              <CandidateList>
-                {analysis.evidence.top_season_candidates.map((candidate) => (
-                  <CandidateItem key={candidate.season}>
-                    <CandidateHeader>
-                      <strong>{candidate.season}</strong>
-                      <CandidateScore>{formatPercent(candidate.score)}</CandidateScore>
-                    </CandidateHeader>
-                    {candidate.evidence_for.length > 0 && (
-                      <EvidenceList>
-                        {candidate.evidence_for.map((evidence) => (
-                          <li key={evidence}>{evidence}</li>
-                        ))}
-                      </EvidenceList>
-                    )}
-                  </CandidateItem>
-                ))}
-              </CandidateList>
-            </ReportSection>
-          )}
-
-          <ReportSection>
-            <SectionTitle>Recommended Palette</SectionTitle>
-            <PaletteSection colors={analysis.recommended_palette} />
           </ReportSection>
 
           <ReportSection>
@@ -955,141 +1025,177 @@ const Result: React.FC = () => {
 
           <ReportSection>
             <SectionTitle>Result Feedback</SectionTitle>
-            <FeedbackPanel>
-              <FeedbackStatus>How accurate did this result feel?</FeedbackStatus>
-              <FeedbackButtonRow>
-                {([
-                  [5, 'Accurate'],
-                  [3, 'Somewhat'],
-                  [1, 'Not Accurate']
-                ] as Array<[1 | 3 | 5, string]>).map(([rating, label]) => (
-                  <FeedbackButton
-                    key={rating}
-                    type="button"
-                    $selected={feedbackRating === rating}
-                    onClick={() => setFeedbackRating(rating)}
-                  >
-                    {label}
-                  </FeedbackButton>
-                ))}
-              </FeedbackButtonRow>
-              <FeedbackStatus>What felt off?</FeedbackStatus>
-              <FeedbackButtonRow>
-                {([
-                  ['season', 'Season'],
-                  ['undertone', 'Undertone'],
-                  ['palette', 'Palette'],
-                  ['makeup', 'Makeup'],
-                  ['fashion', 'Fashion'],
-                  ['photo_quality', 'Photo Quality']
-                ] as Array<[AnalysisFeedback['issue_tags'][number], string]>).map(([tag, label]) => (
-                  <FeedbackButton
-                    key={tag}
-                    type="button"
-                    $selected={feedbackTags.includes(tag)}
-                    onClick={() => toggleFeedbackTag(tag)}
-                  >
-                    {label}
-                  </FeedbackButton>
-                ))}
-              </FeedbackButtonRow>
-              <ActionButton
-                type="button"
-                $variant="primary"
-                disabled={!feedbackRating}
-                onClick={submitFeedback}
+            <DisclosurePanel
+              title="Was this accurate?"
+              description="Optional feedback helps tune future analysis quality."
+            >
+              <FeedbackPanel>
+                <FeedbackStatus>How accurate did this result feel?</FeedbackStatus>
+                <FeedbackButtonRow>
+                  {([
+                    [5, 'Accurate'],
+                    [3, 'Somewhat'],
+                    [1, 'Not Accurate']
+                  ] as Array<[1 | 3 | 5, string]>).map(([rating, label]) => (
+                    <FeedbackButton
+                      key={rating}
+                      type="button"
+                      $selected={feedbackRating === rating}
+                      onClick={() => setFeedbackRating(rating)}
+                    >
+                      {label}
+                    </FeedbackButton>
+                  ))}
+                </FeedbackButtonRow>
+                <FeedbackStatus>What felt off?</FeedbackStatus>
+                <FeedbackButtonRow>
+                  {([
+                    ['season', 'Season'],
+                    ['undertone', 'Undertone'],
+                    ['palette', 'Palette'],
+                    ['makeup', 'Makeup'],
+                    ['fashion', 'Fashion'],
+                    ['photo_quality', 'Photo Quality']
+                  ] as Array<[AnalysisFeedback['issue_tags'][number], string]>).map(([tag, label]) => (
+                    <FeedbackButton
+                      key={tag}
+                      type="button"
+                      $selected={feedbackTags.includes(tag)}
+                      onClick={() => toggleFeedbackTag(tag)}
+                    >
+                      {label}
+                    </FeedbackButton>
+                  ))}
+                </FeedbackButtonRow>
+                <ActionButton
+                  type="button"
+                  $variant="primary"
+                  disabled={!feedbackRating}
+                  onClick={submitFeedback}
+                >
+                  Save Feedback
+                </ActionButton>
+                {feedbackStatus && <FeedbackStatus>{feedbackStatus}</FeedbackStatus>}
+              </FeedbackPanel>
+            </DisclosurePanel>
+          </ReportSection>
+
+          <ReportSection>
+            <SectionTitle>Style Guidance</SectionTitle>
+            <DisclosureStack>
+              <DisclosurePanel
+                title="Beauty Recommendations"
+                description="Lip, blush, eyeshadow, and base makeup guidance for this palette."
               >
-                Save Feedback
-              </ActionButton>
-              {feedbackStatus && <FeedbackStatus>{feedbackStatus}</FeedbackStatus>}
-            </FeedbackPanel>
-          </ReportSection>
-
-          <ReportSection>
-            <SectionTitle>Beauty Recommendations</SectionTitle>
-            <BeautyRecommendations recommendations={analysis.beauty_recommendations} />
-          </ReportSection>
-
-          <ReportSection>
-            <SectionTitle>Fashion Recommendations</SectionTitle>
-            <FashionRecommendations recommendations={analysis.fashion_recommendations} />
+                <BeautyRecommendations recommendations={analysis.beauty_recommendations} />
+              </DisclosurePanel>
+              <DisclosurePanel
+                title="Fashion Recommendations"
+                description="Best colors, colors to avoid, and metal suggestions."
+              >
+                <FashionRecommendations recommendations={analysis.fashion_recommendations} />
+              </DisclosurePanel>
+            </DisclosureStack>
           </ReportSection>
 
           <ReportSection>
             <SectionTitle>Product Recommendations</SectionTitle>
-            <PreferenceIntro>
-              <strong>Personalize your picks</strong> by adding shopping intent, budget, finish, brand, and avoid-color preferences.
-            </PreferenceIntro>
-            <PreferenceGrid>
-              <PreferenceField>
-                Makeup style
-                <PreferenceSelect value={makeupStyle} onChange={(event) => setMakeupStyle(event.target.value as MakeupStyle)}>
-                  <option value="natural">Natural</option>
-                  <option value="polished">Polished</option>
-                  <option value="soft_glam">Soft glam</option>
-                  <option value="bold">Bold</option>
-                  <option value="glam">Glam</option>
-                </PreferenceSelect>
-              </PreferenceField>
-              <PreferenceField>
-                Budget
-                <PreferenceSelect value={budgetRange} onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}>
-                  <option value="flexible">Flexible</option>
-                  <option value="drugstore">Drugstore</option>
-                  <option value="mid_range">Mid-range</option>
-                  <option value="luxury">Luxury</option>
-                </PreferenceSelect>
-              </PreferenceField>
-              <PreferenceField>
-                Shopping goal
-                <PreferenceSelect value={shoppingGoal} onChange={(event) => setShoppingGoal(event.target.value as ShoppingGoal)}>
-                  <option value="full_look">Full look</option>
-                  <option value="lipstick">Lipstick</option>
-                  <option value="blush">Blush</option>
-                  <option value="eyes">Eyeshadow</option>
-                  <option value="base">Base makeup</option>
-                  <option value="fashion">Fashion colors</option>
-                </PreferenceSelect>
-              </PreferenceField>
-              <PreferenceField>
-                Preferred brands
-                <PreferenceInput
-                  value={preferredBrands}
-                  onChange={(event) => setPreferredBrands(event.target.value)}
-                  placeholder="Rare Beauty, MAC"
-                />
-              </PreferenceField>
-              <PreferenceField>
-                Avoid colors
-                <PreferenceInput
-                  value={avoidColors}
-                  onChange={(event) => setAvoidColors(event.target.value)}
-                  placeholder="icy pink, orange"
-                />
-              </PreferenceField>
-            </PreferenceGrid>
-            <FinishChoices aria-label="Preferred finishes">
-              {finishOptions.map((finish) => (
-                <FeedbackButton
-                  key={finish}
-                  type="button"
-                  $selected={preferredFinishes.includes(finish)}
-                  onClick={() => togglePreferredFinish(finish)}
-                >
-                  {formatLabel(finish)}
-                </FeedbackButton>
-              ))}
-            </FinishChoices>
             <InlineActions>
-              <ActionButton
+              <ModernActionButton
                 type="button"
-                $variant="primary"
-                disabled={preferenceSaving}
-                onClick={submitBeautyPreferences}
+                variant="secondary"
+                icon={ShoppingBag}
+                onClick={() => navigate('/cart')}
               >
-                {preferenceSaving ? 'Saving Preferences' : 'Personalize Recommendations'}
-              </ActionButton>
+                View Cart
+              </ModernActionButton>
+              <ModernActionButton
+                type="button"
+                variant="secondary"
+                icon={CalendarCheck}
+                onClick={() => navigate('/consultation')}
+              >
+                Book With This Look
+              </ModernActionButton>
             </InlineActions>
+            <DisclosurePanel
+              title="Customize Recommendations"
+              description="Optional filters for budget, finish, style, brands, and colors to avoid."
+            >
+              <PreferenceIntro>
+                <strong>Personalize your picks</strong> by adding shopping intent, budget, finish, brand, and avoid-color preferences.
+              </PreferenceIntro>
+              <PreferenceGrid>
+                <PreferenceField>
+                  Makeup style
+                  <PreferenceSelect value={makeupStyle} onChange={(event) => setMakeupStyle(event.target.value as MakeupStyle)}>
+                    <option value="natural">Natural</option>
+                    <option value="polished">Polished</option>
+                    <option value="soft_glam">Soft glam</option>
+                    <option value="bold">Bold</option>
+                    <option value="glam">Glam</option>
+                  </PreferenceSelect>
+                </PreferenceField>
+                <PreferenceField>
+                  Budget
+                  <PreferenceSelect value={budgetRange} onChange={(event) => setBudgetRange(event.target.value as BudgetRange)}>
+                    <option value="flexible">Flexible</option>
+                    <option value="drugstore">Drugstore</option>
+                    <option value="mid_range">Mid-range</option>
+                    <option value="luxury">Luxury</option>
+                  </PreferenceSelect>
+                </PreferenceField>
+                <PreferenceField>
+                  Shopping goal
+                  <PreferenceSelect value={shoppingGoal} onChange={(event) => setShoppingGoal(event.target.value as ShoppingGoal)}>
+                    <option value="full_look">Full look</option>
+                    <option value="lipstick">Lipstick</option>
+                    <option value="blush">Blush</option>
+                    <option value="eyes">Eyeshadow</option>
+                    <option value="base">Base makeup</option>
+                    <option value="fashion">Fashion colors</option>
+                  </PreferenceSelect>
+                </PreferenceField>
+                <PreferenceField>
+                  Preferred brands
+                  <PreferenceInput
+                    value={preferredBrands}
+                    onChange={(event) => setPreferredBrands(event.target.value)}
+                    placeholder="Rare Beauty, MAC"
+                  />
+                </PreferenceField>
+                <PreferenceField>
+                  Avoid colors
+                  <PreferenceInput
+                    value={avoidColors}
+                    onChange={(event) => setAvoidColors(event.target.value)}
+                    placeholder="icy pink, orange"
+                  />
+                </PreferenceField>
+              </PreferenceGrid>
+              <FinishChoices aria-label="Preferred finishes">
+                {finishOptions.map((finish) => (
+                  <FeedbackButton
+                    key={finish}
+                    type="button"
+                    $selected={preferredFinishes.includes(finish)}
+                    onClick={() => togglePreferredFinish(finish)}
+                  >
+                    {formatLabel(finish)}
+                  </FeedbackButton>
+                ))}
+              </FinishChoices>
+              <InlineActions>
+                <ModernActionButton
+                  type="button"
+                  disabled={preferenceSaving}
+                  icon={Sparkles}
+                  onClick={submitBeautyPreferences}
+                >
+                  {preferenceSaving ? 'Saving Preferences' : 'Personalize Recommendations'}
+                </ModernActionButton>
+              </InlineActions>
+            </DisclosurePanel>
             {preferenceStatus && <FeedbackStatus>{preferenceStatus}</FeedbackStatus>}
             {lookStatus && <FeedbackStatus>{lookStatus}</FeedbackStatus>}
             <ReportBlock>

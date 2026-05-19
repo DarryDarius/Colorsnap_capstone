@@ -1,8 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Camera, CheckCircle2, CloudOff, ImagePlus, Loader2, ShieldCheck, Sparkles, UploadCloud, Wifi } from 'lucide-react';
 import styled from 'styled-components';
 import CameraCapture from '../components/analysis/CameraCapture';
 import { ApiClientError, createAnalysis, getBackendHealth } from '../services/api';
+import ButtonBase from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import MetricCard from '../components/ui/MetricCard';
+import SectionReveal from '../components/ui/SectionReveal';
 
 const PageShell = styled.section`
   min-height: calc(100vh - 72px);
@@ -47,7 +52,7 @@ const Description = styled.p`
 
 const Workspace = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: var(--space-6);
   max-width: var(--container-lg);
   margin: 0 auto;
@@ -94,15 +99,15 @@ const PanelCopy = styled.p`
   margin: 0;
 `;
 
-const PanelBadge = styled.span`
-  background: var(--surface-sage);
-  border: 1px solid #DDE8DA;
-  border-radius: var(--radius-md);
-  color: var(--accent-olive);
-  flex: 0 0 auto;
-  font-size: var(--font-xs);
-  font-weight: 700;
-  padding: var(--space-2) var(--space-3);
+const LiveGrid = styled.div`
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: var(--space-5);
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const ServiceNotice = styled.div<{ $tone?: 'success' | 'warning' | 'danger' }>`
@@ -221,6 +226,10 @@ const UploadIcon = styled.div`
   width: 56px;
 `;
 
+const UploadGlyph = styled(UploadCloud)`
+  display: block;
+`;
+
 const UploadTitle = styled.h3`
   color: var(--text-primary);
   font-size: var(--font-xl);
@@ -283,6 +292,20 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
     border-color: #E4DDDA;
     color: var(--text-muted);
     cursor: not-allowed;
+  }
+`;
+
+const ModernButton = styled(ButtonBase)`
+  min-width: 150px;
+`;
+
+const SpinningLoader = styled(Loader2)`
+  animation: spin 1s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 `;
 
@@ -392,6 +415,19 @@ const PipelineStep = styled.div`
   gap: var(--space-2);
 `;
 
+const GuidanceFeature = styled.div`
+  align-items: center;
+  background: var(--surface-warm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  display: flex;
+  gap: var(--space-3);
+  line-height: 1.5;
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+`;
+
 const StepDot = styled.span`
   background: var(--accent-sage);
   border-radius: 999px;
@@ -428,6 +464,15 @@ const getAnalysisServiceState = (
     return 'degraded';
   }
   return 'live';
+};
+
+const formatServiceState = (state: AnalysisServiceState) => {
+  if (state === 'live') return 'Ready';
+  if (state === 'mock') return 'Mock';
+  if (state === 'degraded') return 'Under pressure';
+  if (state === 'misconfigured') return 'Needs config';
+  if (state === 'offline') return 'Offline';
+  return 'Checking';
 };
 
 const getFriendlyAnalysisStartError = (error: unknown) => {
@@ -531,6 +576,20 @@ const Analysis: React.FC = () => {
   const isServiceOffline = serviceState === 'offline';
   const isOpenAiMissingConfig = serviceState === 'misconfigured';
   const isAnalysisUnavailable = serviceState === 'offline' || serviceState === 'misconfigured' || serviceState === 'checking';
+  const serviceBadgeTone = serviceState === 'live'
+    ? 'sage'
+    : serviceState === 'offline' || serviceState === 'misconfigured'
+      ? 'danger'
+      : serviceState === 'checking'
+        ? 'neutral'
+        : 'warning';
+  const serviceMetricTone = serviceState === 'live'
+    ? 'sage'
+    : serviceState === 'offline' || serviceState === 'misconfigured'
+      ? 'danger'
+      : serviceState === 'checking'
+        ? 'default'
+        : 'warning';
 
   const setFile = (file: File, source: PhotoSource = 'upload') => {
     if (!allowedTypes.has(file.type)) {
@@ -634,14 +693,31 @@ const Analysis: React.FC = () => {
       </PageHeader>
 
       <Workspace>
+        <SectionReveal>
         <UploadPanel>
           <PanelHeader>
             <div>
               <PanelTitle>Start with one natural-light photo</PanelTitle>
               <PanelCopy>Use a front-facing image with your face unobstructed.</PanelCopy>
             </div>
-            <PanelBadge>{modeLabel}</PanelBadge>
+            <Badge $tone={serviceBadgeTone}>{modeLabel}</Badge>
           </PanelHeader>
+
+          <LiveGrid>
+            <MetricCard
+              icon={serviceState === 'offline' ? CloudOff : Wifi}
+              label="Live service"
+              value={formatServiceState(serviceState)}
+              tone={serviceMetricTone}
+            />
+            <MetricCard
+              icon={ShieldCheck}
+              label="Analysis mode"
+              value={aiMode === 'openai' ? 'OpenAI live' : aiMode === 'mock' ? 'Mock' : 'Checking'}
+              description={backendHealth?.analysis_queue?.worker ? `${backendHealth.analysis_queue.worker.active || 0} active jobs` : undefined}
+              tone={aiMode === 'openai' && serviceState === 'live' ? 'sage' : 'default'}
+            />
+          </LiveGrid>
 
           {aiMode === 'offline' && (
             <ServiceNotice $tone="danger">
@@ -751,42 +827,50 @@ const Analysis: React.FC = () => {
               </>
             ) : (
               <UploadEmptyState>
-                <UploadIcon>+</UploadIcon>
+                <UploadIcon><UploadGlyph aria-hidden="true" size={26} /></UploadIcon>
                 <UploadTitle>Drop your photo here</UploadTitle>
                 <UploadText>Take a fresh selfie or choose an existing JPG, PNG, or WEBP under 5 MB.</UploadText>
                 <UploadButtonRow>
-                  <Button
+                  <ModernButton
                     type="button"
+                    icon={Camera}
                     onClick={(event) => {
                       event.stopPropagation();
                       handleCameraClick();
                     }}
                   >
                     Take Photo
-                  </Button>
-                  <Button
+                  </ModernButton>
+                  <ModernButton
                     type="button"
-                    $variant="secondary"
+                    variant="secondary"
+                    icon={ImagePlus}
                     onClick={(event) => {
                       event.stopPropagation();
                       handleUploadClick();
                     }}
                   >
                     Choose Photo
-                  </Button>
+                  </ModernButton>
                 </UploadButtonRow>
               </UploadEmptyState>
             )}
           </DropZone>
 
           <AnalyzeActions>
-            <Button
+            <ModernButton
               type="button"
+              icon={isAnalyzing ? undefined : Sparkles}
               disabled={!selectedFile || isAnalyzing || isAnalysisUnavailable}
               onClick={handleAnalyze}
             >
-              {isAnalyzing ? 'Starting Analysis...' : 'Start Analysis'}
-            </Button>
+              {isAnalyzing ? (
+                <>
+                  <SpinningLoader aria-hidden="true" size={17} />
+                  Starting Analysis...
+                </>
+              ) : 'Start Analysis'}
+            </ModernButton>
           </AnalyzeActions>
 
           {isAnalyzing && (
@@ -797,7 +881,9 @@ const Analysis: React.FC = () => {
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
         </UploadPanel>
+        </SectionReveal>
 
+        <SectionReveal delay={0.08}>
         <GuidancePanel>
           <GuidanceImage src="/images/index1.jpg" alt="Color study portrait" />
           <GuidanceBody>
@@ -817,6 +903,11 @@ const Analysis: React.FC = () => {
               </ChecklistItem>
             </Checklist>
 
+            <GuidanceFeature>
+              <CheckCircle2 aria-hidden="true" size={18} color="var(--success)" />
+              <span>Live-first mode returns model-backed results or a transparent retry state.</span>
+            </GuidanceFeature>
+
             <PrivacyNote>
               Your photo is used for this analysis flow only. Camera access starts only when you choose Take Photo, and the preview is stored locally in your browser.
             </PrivacyNote>
@@ -831,6 +922,7 @@ const Analysis: React.FC = () => {
             </Pipeline>
           </GuidanceBody>
         </GuidancePanel>
+        </SectionReveal>
       </Workspace>
 
       <CameraCapture

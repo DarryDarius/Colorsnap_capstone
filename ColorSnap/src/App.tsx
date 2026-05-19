@@ -24,27 +24,29 @@ import DemoCheck from './pages/DemoCheck';
 const GlobalStyle = createGlobalStyle`
   :root {
     /* Modern Beauty Editorial Tokens */
-    --bg-page: #FFFCFA;
-    --bg-soft: #F8F3F4;
+    --bg-page: #FBF8F6;
+    --bg-soft: #F6EFED;
     --bg-lifted: #F9FAF7;
     --surface: #FFFFFF;
     --surface-warm: #FFF7F5;
     --surface-sage: #F2F6F1;
 
-    --text-primary: #181414;
+    --text-primary: #211A1A;
     --text-secondary: #6E6460;
     --text-muted: #9A8F8A;
     --text-inverse: #FFFFFF;
 
-    --brand-primary: #D8647A;
-    --brand-primary-hover: #C65368;
-    --brand-primary-soft: #F4D6DC;
+    --brand-primary: #C85F73;
+    --brand-primary-hover: #B64F63;
+    --brand-primary-soft: #F4D9DE;
     --brand-primary-pale: #FBEEF1;
 
     --accent-clay: #9D6B53;
     --accent-sage: #7E8A6A;
     --accent-olive: #69734D;
     --accent-gold: #C69A4A;
+    --cool-accent: #8D98B8;
+    --cool-accent-soft: #E9EDF5;
 
     --border-soft: #E8DEDA;
     --border-strong: #D8C9C3;
@@ -54,8 +56,8 @@ const GlobalStyle = createGlobalStyle`
     --error: #B42318;
     --info: #3E738F;
 
-    --shadow-soft: 0 8px 24px rgba(56, 35, 28, 0.06);
-    --shadow-medium: 0 14px 36px rgba(56, 35, 28, 0.1);
+    --shadow-soft: 0 10px 30px rgba(55, 38, 32, 0.06);
+    --shadow-medium: 0 18px 48px rgba(55, 38, 32, 0.1);
 
     --radius-sm: 6px;
     --radius-md: 8px;

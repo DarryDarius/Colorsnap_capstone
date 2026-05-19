@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronRight, ExternalLink, Heart, Info, ShoppingBag, SlidersHorizontal, Sparkles } from 'lucide-react';
 import styled from 'styled-components';
+import DisclosurePanel from '../ui/DisclosurePanel';
+import InsightDrawer from '../ui/InsightDrawer';
 import type { ProductRecommendation } from '../../types/analysis';
 import { formatLabel, isRealExternalUrl } from '../../utils/formatters';
 
@@ -36,6 +39,8 @@ const RecommendationIntro = styled.div`
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   color: var(--text-secondary);
+  display: grid;
+  gap: var(--space-2);
   line-height: 1.65;
   margin-bottom: var(--space-5);
   padding: var(--space-4);
@@ -44,6 +49,14 @@ const RecommendationIntro = styled.div`
   strong {
     color: var(--text-primary);
   }
+`;
+
+const RecommendationIntroHeader = styled.div`
+  align-items: center;
+  color: var(--text-primary);
+  display: flex;
+  font-weight: 900;
+  gap: var(--space-2);
 `;
 
 const ControlsGrid = styled.div`
@@ -68,6 +81,12 @@ const ControlGroup = styled.label`
   font-weight: 800;
   gap: var(--space-2);
   text-align: left;
+
+  span {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--space-1);
+  }
 `;
 
 const Select = styled.select`
@@ -88,6 +107,7 @@ const ProductsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--space-4);
+  margin-top: var(--space-4);
 `;
 
 const EmptyState = styled.div`
@@ -115,6 +135,26 @@ const ProductCard = styled.div`
     border-color: var(--brand-primary-soft);
     transform: translateY(-2px);
   }
+`;
+
+const ProductMedia = styled.div`
+  position: relative;
+`;
+
+const ScoreBadge = styled.span`
+  align-items: center;
+  background: rgba(33, 26, 26, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-md);
+  bottom: var(--space-3);
+  color: var(--text-inverse);
+  display: inline-flex;
+  font-size: var(--font-xs);
+  font-weight: 900;
+  gap: var(--space-1);
+  left: var(--space-3);
+  padding: 0.45rem 0.62rem;
+  position: absolute;
 `;
 
 const BadgeRow = styled.div`
@@ -162,6 +202,21 @@ const ProductInfo = styled.p`
 
   strong {
     color: var(--text-primary);
+  }
+`;
+
+const ProductPrimaryMeta = styled.div`
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-sm);
+  gap: var(--space-2);
+
+  span {
+    background: var(--surface-warm);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 0.35rem 0.55rem;
   }
 `;
 
@@ -235,13 +290,17 @@ const ActionRow = styled.div`
 `;
 
 const ActionButton = styled.button`
+  align-items: center;
   background: var(--brand-primary);
   border: 1px solid var(--brand-primary);
   border-radius: var(--radius-md);
   color: var(--text-inverse);
   cursor: pointer;
+  display: inline-flex;
   font-size: var(--font-sm);
   font-weight: 700;
+  gap: var(--space-2);
+  justify-content: center;
   padding: 0.65rem 0.9rem;
   transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 
@@ -250,6 +309,79 @@ const ActionButton = styled.button`
     border-color: var(--brand-primary-hover);
     transform: translateY(-1px);
   }
+`;
+
+const SecondaryActionButton = styled(ActionButton)`
+  background: var(--surface);
+  border-color: var(--border-soft);
+  color: var(--text-primary);
+
+  &:hover {
+    background: var(--brand-primary-pale);
+    border-color: var(--brand-primary-soft);
+  }
+`;
+
+const MatchButton = styled.button`
+  align-items: center;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(135deg, var(--brand-primary), var(--cool-accent)) border-box;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  display: inline-grid;
+  font-size: var(--font-sm);
+  font-weight: 900;
+  gap: var(--space-2);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 42px;
+  padding: 0.5rem 0.62rem;
+  position: relative;
+  text-align: left;
+  transition: box-shadow 160ms ease, transform 160ms ease;
+
+  &::before {
+    background: linear-gradient(135deg, rgba(200, 95, 115, 0.12), rgba(141, 152, 184, 0.14));
+    border-radius: inherit;
+    content: "";
+    inset: 0;
+    opacity: 0.72;
+    position: absolute;
+  }
+
+  > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  &:hover {
+    box-shadow: 0 12px 28px rgba(200, 95, 115, 0.14);
+    transform: translateY(-1px);
+  }
+`;
+
+const MatchIcon = styled.span`
+  align-items: center;
+  background: var(--brand-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-inverse);
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+`;
+
+const MatchLabel = styled.span`
+  display: grid;
+  line-height: 1.15;
+`;
+
+const MatchSubLabel = styled.span`
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  font-weight: 800;
+  margin-top: 0.1rem;
 `;
 
 const PurchaseLink = styled.a`
@@ -261,6 +393,7 @@ const PurchaseLink = styled.a`
   color: var(--text-primary);
   font-size: var(--font-sm);
   font-weight: 700;
+  gap: var(--space-2);
   padding: 0.65rem 0.9rem;
   text-decoration: none;
   transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
@@ -281,6 +414,7 @@ const DetailLink = styled(Link)`
   color: var(--text-primary);
   font-size: var(--font-sm);
   font-weight: 700;
+  gap: var(--space-2);
   padding: 0.65rem 0.9rem;
   text-decoration: none;
   transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
@@ -290,6 +424,21 @@ const DetailLink = styled(Link)`
     border-color: var(--brand-primary-soft);
     transform: translateY(-1px);
   }
+`;
+
+const DrawerContent = styled.div`
+  display: grid;
+  gap: var(--space-4);
+`;
+
+const DrawerSection = styled.section`
+  display: grid;
+  gap: var(--space-3);
+`;
+
+const DrawerTitle = styled.h3`
+  color: var(--text-primary);
+  font-size: var(--font-md);
 `;
 
 type Props = {
@@ -364,6 +513,7 @@ const ProductRecommendations: React.FC<Props> = ({
   const [finishFilter, setFinishFilter] = useState('all');
   const [intensityFilter, setIntensityFilter] = useState('all');
   const [sortMode, setSortMode] = useState<SortMode>('best-match');
+  const [selectedMatchProduct, setSelectedMatchProduct] = useState<ProductRecommendation | null>(null);
   const categories = Array.from(new Set(products.map((product) => product.category)));
   const retailers = useMemo(
     () => Array.from(new Set(products.map((product) => product.retailer_name || getRetailerName(product.purchase_url)))).sort(),
@@ -401,8 +551,14 @@ const ProductRecommendations: React.FC<Props> = ({
   return (
     <>
       <RecommendationIntro>
-        <strong>Best Match</strong> ranks products by palette match, undertone fit, saturation, brightness,
-        and contrast support. Use filters to narrow the list by category, price, retailer, finish, or intensity.
+        <RecommendationIntroHeader>
+          <Sparkles aria-hidden="true" size={17} />
+          Best Match ranking
+        </RecommendationIntroHeader>
+        <span>
+          Products are ranked by palette match, undertone fit, saturation, brightness, and contrast support.
+          Use filters to narrow the list by category, price, retailer, finish, or intensity.
+        </span>
       </RecommendationIntro>
 
       <FilterBar>
@@ -420,52 +576,57 @@ const ProductRecommendations: React.FC<Props> = ({
         ))}
       </FilterBar>
 
-      <ControlsGrid>
-        <ControlGroup>
-          Price range
-          <Select value={priceFilter} onChange={(event) => setPriceFilter(event.target.value as PriceFilter)}>
-            <option value="all">All prices</option>
-            <option value="under-25">Under $25</option>
-            <option value="25-50">$25-$50</option>
-            <option value="50-plus">$50+</option>
-          </Select>
-        </ControlGroup>
-        <ControlGroup>
-          Retailer
-          <Select value={retailerFilter} onChange={(event) => setRetailerFilter(event.target.value)}>
-            <option value="all">All retailers</option>
-            {retailers.map((retailer) => (
-              <option key={retailer} value={retailer}>{retailer}</option>
-            ))}
-          </Select>
-        </ControlGroup>
-        <ControlGroup>
-          Finish
-          <Select value={finishFilter} onChange={(event) => setFinishFilter(event.target.value)}>
-            <option value="all">All finishes</option>
-            {finishes.map((finish) => (
-              <option key={finish} value={finish}>{formatLabel(finish)}</option>
-            ))}
-          </Select>
-        </ControlGroup>
-        <ControlGroup>
-          Intensity
-          <Select value={intensityFilter} onChange={(event) => setIntensityFilter(event.target.value)}>
-            <option value="all">All intensities</option>
-            {intensities.map((intensity) => (
-              <option key={intensity} value={intensity}>{formatLabel(intensity)}</option>
-            ))}
-          </Select>
-        </ControlGroup>
-        <ControlGroup>
-          Sort
-          <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
-            <option value="best-match">Best Match</option>
-            <option value="price-low">Price Low to High</option>
-            <option value="price-high">Price High to Low</option>
-          </Select>
-        </ControlGroup>
-      </ControlsGrid>
+      <DisclosurePanel
+        title="Refine Product List"
+        description="Use advanced filters for price, retailer, finish, intensity, and sorting."
+      >
+        <ControlsGrid>
+          <ControlGroup>
+            <span><SlidersHorizontal aria-hidden="true" size={14} /> Price range</span>
+            <Select value={priceFilter} onChange={(event) => setPriceFilter(event.target.value as PriceFilter)}>
+              <option value="all">All prices</option>
+              <option value="under-25">Under $25</option>
+              <option value="25-50">$25-$50</option>
+              <option value="50-plus">$50+</option>
+            </Select>
+          </ControlGroup>
+          <ControlGroup>
+            Retailer
+            <Select value={retailerFilter} onChange={(event) => setRetailerFilter(event.target.value)}>
+              <option value="all">All retailers</option>
+              {retailers.map((retailer) => (
+                <option key={retailer} value={retailer}>{retailer}</option>
+              ))}
+            </Select>
+          </ControlGroup>
+          <ControlGroup>
+            Finish
+            <Select value={finishFilter} onChange={(event) => setFinishFilter(event.target.value)}>
+              <option value="all">All finishes</option>
+              {finishes.map((finish) => (
+                <option key={finish} value={finish}>{formatLabel(finish)}</option>
+              ))}
+            </Select>
+          </ControlGroup>
+          <ControlGroup>
+            Intensity
+            <Select value={intensityFilter} onChange={(event) => setIntensityFilter(event.target.value)}>
+              <option value="all">All intensities</option>
+              {intensities.map((intensity) => (
+                <option key={intensity} value={intensity}>{formatLabel(intensity)}</option>
+              ))}
+            </Select>
+          </ControlGroup>
+          <ControlGroup>
+            Sort
+            <Select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
+              <option value="best-match">Best Match</option>
+              <option value="price-low">Price Low to High</option>
+              <option value="price-high">Price High to Low</option>
+            </Select>
+          </ControlGroup>
+        </ControlsGrid>
+      </DisclosurePanel>
 
       {filteredProducts.length === 0 && (
         <EmptyState>
@@ -476,7 +637,13 @@ const ProductRecommendations: React.FC<Props> = ({
       <ProductsGrid>
         {filteredProducts.map((product) => (
           <ProductCard key={product.id}>
-            <ProductImage src={product.image} alt={product.name} />
+            <ProductMedia>
+              <ProductImage src={product.image} alt={product.name} />
+              <ScoreBadge>
+                <Sparkles aria-hidden="true" size={13} />
+                {product.score}% match
+              </ScoreBadge>
+            </ProductMedia>
             <ProductTitle>{product.name}</ProductTitle>
             <ProductBrand>{product.brand || 'Curated Match'}</ProductBrand>
             <BadgeRow>
@@ -484,56 +651,44 @@ const ProductRecommendations: React.FC<Props> = ({
                 <Badge key={badge}>{badge}</Badge>
               ))}
             </BadgeRow>
-            <MetaGrid>
-              <ProductInfo><strong>Shade:</strong> {product.shade}</ProductInfo>
-              <ProductInfo><strong>Category:</strong> {formatLabel(product.category)}</ProductInfo>
-              <ProductInfo><strong>Retailer:</strong> {product.retailer_name || getRetailerName(product.purchase_url)}</ProductInfo>
-              <ProductInfo><strong>Match Score:</strong> {product.score}%</ProductInfo>
-              <ProductInfo><strong>Finish:</strong> {product.finish ? formatLabel(product.finish) : 'Any'}</ProductInfo>
-              <ProductInfo><strong>Intensity:</strong> {product.intensity ? formatLabel(product.intensity) : 'Any'}</ProductInfo>
-              <ProductInfo><strong>Price:</strong> ${product.price}</ProductInfo>
-            </MetaGrid>
-            {formatScoreBreakdown(product).length > 0 && (
-              <ScoreBreakdown aria-label={`${product.name} score breakdown`}>
-                {formatScoreBreakdown(product).map((item) => (
-                  <ScorePill key={item.label}>{item.label}: {item.value}</ScorePill>
-                ))}
-              </ScoreBreakdown>
-            )}
-            {product.best_for?.length > 0 && (
-              <BestForList aria-label={`${product.name} best for`}>
-                {product.best_for.map((item) => (
-                  <BestForPill key={item}>{item}</BestForPill>
-                ))}
-              </BestForList>
-            )}
+            <ProductPrimaryMeta>
+              <span>{formatLabel(product.category)}</span>
+              <span>{product.retailer_name || getRetailerName(product.purchase_url)}</span>
+              <span>${product.price}</span>
+            </ProductPrimaryMeta>
             <ProductInfo>{product.short_description || `${product.shade} selected for your palette.`}</ProductInfo>
-            <ProductInfo>{product.reason}</ProductInfo>
-            {product.match_reasons && product.match_reasons.length > 0 && (
-              <ReasonList aria-label={`${product.name} match reasons`}>
-                {product.match_reasons.slice(0, 3).map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ReasonList>
-            )}
             <ActionRow>
+              <MatchButton type="button" onClick={() => setSelectedMatchProduct(product)}>
+                <MatchIcon aria-hidden="true">
+                  <Sparkles size={15} />
+                </MatchIcon>
+                <MatchLabel>
+                  Why Match
+                  <MatchSubLabel>{product.score}% fit insight</MatchSubLabel>
+                </MatchLabel>
+                <ChevronRight aria-hidden="true" size={16} />
+              </MatchButton>
               {product.slug && (
                 <DetailLink
                   to={`/products/${encodeURIComponent(product.slug)}${analysisId ? `?analysis_id=${encodeURIComponent(analysisId)}` : ''}`}
                 >
+                  <Info aria-hidden="true" size={15} />
                   View Details
                 </DetailLink>
               )}
-              <ActionButton onClick={() => onAddToCart(product)}>
+              <ActionButton type="button" onClick={() => onAddToCart(product)}>
+                <ShoppingBag aria-hidden="true" size={15} />
                 Add to Cart
               </ActionButton>
               {onSaveToLook && (
-                <ActionButton onClick={() => onSaveToLook(product)}>
+                <SecondaryActionButton type="button" onClick={() => onSaveToLook(product)}>
+                  <Heart aria-hidden="true" size={15} />
                   Save to Look
-                </ActionButton>
+                </SecondaryActionButton>
               )}
               {isRealExternalUrl(product.purchase_url) && (
                 <PurchaseLink href={product.purchase_url} target="_blank" rel="noreferrer">
+                  <ExternalLink aria-hidden="true" size={15} />
                   Buy Externally
                 </PurchaseLink>
               )}
@@ -541,6 +696,63 @@ const ProductRecommendations: React.FC<Props> = ({
           </ProductCard>
         ))}
       </ProductsGrid>
+
+      <InsightDrawer
+        open={Boolean(selectedMatchProduct)}
+        title={selectedMatchProduct ? selectedMatchProduct.name : 'Product Match'}
+        subtitle={selectedMatchProduct ? `${selectedMatchProduct.score}% palette match` : undefined}
+        onClose={() => setSelectedMatchProduct(null)}
+      >
+        {selectedMatchProduct && (
+          <DrawerContent>
+            <DrawerSection>
+              <DrawerTitle>Product Details</DrawerTitle>
+              <MetaGrid>
+                <ProductInfo><strong>Shade:</strong> {selectedMatchProduct.shade}</ProductInfo>
+                <ProductInfo><strong>Category:</strong> {formatLabel(selectedMatchProduct.category)}</ProductInfo>
+                <ProductInfo><strong>Retailer:</strong> {selectedMatchProduct.retailer_name || getRetailerName(selectedMatchProduct.purchase_url)}</ProductInfo>
+                <ProductInfo><strong>Finish:</strong> {selectedMatchProduct.finish ? formatLabel(selectedMatchProduct.finish) : 'Any'}</ProductInfo>
+                <ProductInfo><strong>Intensity:</strong> {selectedMatchProduct.intensity ? formatLabel(selectedMatchProduct.intensity) : 'Any'}</ProductInfo>
+                <ProductInfo><strong>Price:</strong> ${selectedMatchProduct.price}</ProductInfo>
+              </MetaGrid>
+            </DrawerSection>
+
+            <DrawerSection>
+              <DrawerTitle>Why It Matches</DrawerTitle>
+              <ProductInfo>{selectedMatchProduct.reason}</ProductInfo>
+              {selectedMatchProduct.match_reasons && selectedMatchProduct.match_reasons.length > 0 && (
+                <ReasonList aria-label={`${selectedMatchProduct.name} match reasons`}>
+                  {selectedMatchProduct.match_reasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ReasonList>
+              )}
+            </DrawerSection>
+
+            {formatScoreBreakdown(selectedMatchProduct).length > 0 && (
+              <DrawerSection>
+                <DrawerTitle>Score Breakdown</DrawerTitle>
+                <ScoreBreakdown aria-label={`${selectedMatchProduct.name} score breakdown`}>
+                  {formatScoreBreakdown(selectedMatchProduct).map((item) => (
+                    <ScorePill key={item.label}>{item.label}: {item.value}</ScorePill>
+                  ))}
+                </ScoreBreakdown>
+              </DrawerSection>
+            )}
+
+            {selectedMatchProduct.best_for?.length > 0 && (
+              <DrawerSection>
+                <DrawerTitle>Best For</DrawerTitle>
+                <BestForList aria-label={`${selectedMatchProduct.name} best for`}>
+                  {selectedMatchProduct.best_for.map((item) => (
+                    <BestForPill key={item}>{item}</BestForPill>
+                  ))}
+                </BestForList>
+              </DrawerSection>
+            )}
+          </DrawerContent>
+        )}
+      </InsightDrawer>
     </>
   );
 };
